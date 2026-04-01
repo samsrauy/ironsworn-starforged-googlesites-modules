@@ -1,9 +1,144 @@
-// Get settings from the URL (e.g., ?game=starforged&table=core)
-const urlParams = new URLSearchParams(window.location.search);
-const game = urlParams.get('game') || 'starforged'; 
-const tablePath = urlParams.get('table') || 'oracles/core.json';
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="../../css/style.css">
+    <style>
+        select { 
+            background: #1a1c23; 
+            color: var(--text-color); 
+            border: 1px solid var(--border-color); 
+            padding: 8px; 
+            width: 100%; 
+            margin-bottom: 10px; 
+            border-radius: 4px;
+        }
+        .roll-display { 
+            font-family: 'Courier New', monospace; 
+            color: var(--accent-color); 
+            font-size: 1.1rem; 
+            margin-top: 15px; 
+            font-weight: bold;
+        }
+        .result-text { 
+            border-left: 3px solid var(--accent-color); 
+            padding-left: 15px; 
+            margin-top: 10px; 
+            min-height: 60px;
+            font-style: italic;
+            line-height: 1.4;
+        }
+        .container { width: 100%; max-width: 400px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loader">Initializing Datasworn...</div>
+        
+        <div id="roller-ui" style="display:none;">
+            <select id="category-select" onchange="updateTableList()"></select>
+            
+            <select id="table-select"></select>
+            
+            <button onclick="roll()" style="width: 100%;">Roll Oracle</button>
+            
+            <div class="roll-display" id="roll-out"></div>
+            <div class="result-text" id="result-out">Select a table to begin.</div>
+        </div>
+    </div>
 
-async function init() {
-    const data = await fetchDatasworn(game, tablePath);
-    // Populate UI based on the game and data
-}
+    <script src="../../js/datasworn.js"></script>
+    <script src="../../js/sync.js"></script>
+    
+    <script>
+        /**
+         * 1. CONFIGURATION & STATE
+         */
+        const params = new URLSearchParams(window.location.search);
+        const game = params.get('game') || 'starforged'; 
+        const charId = params.get('id') || 'global';
+        
+        let oracleData = null;
+
+        /**
+         * 2. HELPER: Finding the result in Datasworn's table format
+         */
+        function getOracleResult(table, roll) {
+            return table.find(row => roll >= row.floor && roll <= row.ceil);
+        }
+
+        /**
+         * 3. INITIALIZATION
+         */
+        async function init() {
+            // We fetch the core oracle file for the game specified in the URL
+            oracleData = await fetchDatasworn(game, 'oracles/core.json');
+            
+            if (oracleData) {
+                const catSelect = document.getElementById('category-select');
+                
+                // Map the categories from the JSON to the first dropdown
+                Object.keys(oracleData.oracles).forEach(catKey => {
+                    let opt = document.createElement('option');
+                    opt.value = catKey;
+                    opt.innerText = oracleData.oracles[catKey].name;
+                    catSelect.appendChild(opt);
+                });
+                
+                updateTableList(); // Fill the second dropdown
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('roller-ui').style.display = 'block';
+            } else {
+                document.getElementById('loader').innerText = "Error loading data. Check console.";
+            }
+        }
+
+        /**
+         * 4. UI LOGIC: Update the second dropdown when the first changes
+         */
+        function updateTableList() {
+            const catKey = document.getElementById('category-select').value;
+            const tableSelect = document.getElementById('table-select');
+            tableSelect.innerHTML = ''; 
+            
+            const category = oracleData.oracles[catKey];
+            
+            // In Datasworn, some oracles are nested inside an 'oracles' object
+            const tables = category.oracles || {};
+            
+            Object.keys(tables).forEach(tKey => {
+                let opt = document.createElement('option');
+                opt.value = tKey;
+                opt.innerText = tables[tKey].name;
+                tableSelect.appendChild(opt);
+            });
+        }
+
+        /**
+         * 5. THE ROLL: Perform the roll and sync to Google Sheets
+         */
+        async function roll() {
+            const catKey = document.getElementById('category-select').value;
+            const tKey = document.getElementById('table-select').value;
+            
+            const oracle = oracleData.oracles[catKey].oracles[tKey];
+            const tableData = oracle.table;
+            
+            // Datasworn oracles are usually d100
+            const dieRoll = Math.floor(Math.random() * 100) + 1;
+            const entry = getOracleResult(tableData, dieRoll);
+            
+            // Update UI
+            document.getElementById('roll-out').innerText = `${oracle.name.toUpperCase()}: ${dieRoll}`;
+            document.getElementById('result-out').innerText = entry.result;
+
+            // Sync to Google Sheet so other players see the result
+            if (typeof saveStat === "function") {
+                saveStat(charId, "last_roll", `[${dieRoll}] ${entry.result} (${oracle.name})`);
+            }
+        }
+
+        // Start the app
+        init();
+    </script>
+</body>
+</html>
