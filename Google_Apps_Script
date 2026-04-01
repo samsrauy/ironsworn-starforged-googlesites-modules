@@ -10,7 +10,7 @@
  * 1. In your Google Sheet, go to the top menu and select Extensions > Apps Script.
  * 2. A new tab will open with a code editor.
  * 3. Delete everything currently in the editor (the empty myFunction).
- * 3. Paste the contents of THIS script into Code.gs
+ * 4. Paste the contents of THIS script into Code.gs
  * * DEPLOYMENT INSTRUCTIONS:
  * 1. Click 'Deploy' > 'New Deployment'.
  * 2. Select 'Web App'.
