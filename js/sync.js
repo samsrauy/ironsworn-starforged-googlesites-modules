@@ -83,3 +83,25 @@ async function loadStats(id) {
         return {};
     }
 }
+
+/**
+ * REFRESH HEARTBEAT ENGINE
+ * Call this from any module to start an auto-refresh cycle.
+ * @param {Function} callback - The function to run (e.g., refreshData)
+ * @param {Number} interval - Base milliseconds (default 35000)
+ */
+function startHeartbeat(callback, interval = 35000) {
+    if (typeof callback !== 'function') return;
+
+    // 1. Initial Load
+    callback();
+
+    // 2. Staggered Jitter (0-5 seconds)
+    // This ensures 5 iframes don't hit the API at the exact same millisecond.
+    const jitter = Math.floor(Math.random() * 5000);
+
+    setTimeout(() => {
+        setInterval(callback, interval);
+        console.log(`Sync Bridge: Heartbeat started with ${jitter}ms jitter.`);
+    }, jitter);
+}
