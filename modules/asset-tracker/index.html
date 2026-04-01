@@ -41,7 +41,6 @@
         
         .ability-text { font-size: 0.9rem; line-height: 1.4; opacity: 0.9; }
         
-        /* The Built-in Tracker (Health/Integrity) */
         .tracker-area { 
             margin-top: 15px; 
             padding-top: 15px; 
@@ -51,6 +50,7 @@
             justify-content: space-between; 
         }
         .tracker-controls button { padding: 4px 12px; font-size: 1rem; }
+        #loader { text-align: center; padding: 20px; font-style: italic; }
     </style>
 </head>
 <body>
@@ -82,22 +82,21 @@
         
         let assetDetails = null;
         let localState = { 
-            abilities: [true, false, false], // Starforged: 1st is usually free
+            abilities: [true, false, false], 
             tracker: 0 
         };
 
         async function init() {
-            // 1. Theme & URL Check
             document.body.classList.add(`theme-${game}`);
+            
             if (!assetSlug) { 
                 document.getElementById('loader').innerText = "Missing ?asset=[slug] parameter."; 
                 return; 
             }
 
-            // 2. Fetch Rulebook Data
+            // 1. Fetch Datasworn Data
             const allAssets = await fetchDatasworn(game, 'assets.json');
             
-            // Search all categories for the slug
             for (let category in allAssets.assets) {
                 const found = allAssets.assets[category].assets[assetSlug];
                 if (found) {
@@ -105,44 +104,34 @@
                     break;
                 }
             }
-         async function init() {
-             document.body.classList.add(`theme-${game}`);
-             if (!assetSlug) return;
 
-             // Fetch the rulebook data FIRST
-             const allAssets = await fetchDatasworn(game, 'assets.json');
-             for (let cat in allAssets.assets) {
-                 if (allAssets.assets[cat].assets[assetSlug]) {
-                     assetDetails = allAssets.assets[cat].assets[assetSlug];
-                     break;
-                    }
-             }
-
-    if (assetDetails) {
-        // ONLY start the heartbeat if we successfully found the asset
-        startHeartbeat(renderAsset, 35000); 
-        
-        document.getElementById('loader').style.display = 'none';
-        document.getElementById('asset-ui').style.display = 'block';
-    }
-}
-init();
             if (assetDetails) {
-                // 3. Sync with Google Sheet
-                const saved = await loadStats(charId);
-                
-                // Parse abilities (they are stored as JSON strings in the sheet)
-                const savedAbilities = saved[`${assetSlug}_abilities`];
-                if (savedAbilities) localState.abilities = JSON.parse(savedAbilities);
-                
-                localState.tracker = parseInt(saved[`${assetSlug}_tracker`]) || 0;
+                // 2. Start the Pulse
+                // This replaces the old loadStats call and setInterval
+                startHeartbeat(syncWithSheet, 35000);
 
-                renderAsset();
                 document.getElementById('loader').style.display = 'none';
                 document.getElementById('asset-ui').style.display = 'block';
             } else {
-                document.getElementById('loader').innerText = `Asset "${assetSlug}" not found in ${game}.`;
+                document.getElementById('loader').innerText = `Asset "${assetSlug}" not found.`;
             }
+        }
+
+        /**
+         * THE REFRESH FUNCTION
+         * This is what startHeartbeat calls every 35s
+         */
+        async function syncWithSheet() {
+            const saved = await loadStats(charId);
+            
+            const savedAbilities = saved[`${assetSlug}_abilities`];
+            if (savedAbilities) {
+                try { localState.abilities = JSON.parse(savedAbilities); } catch(e) {}
+            }
+            
+            localState.tracker = parseInt(saved[`${assetSlug}_tracker`]) || 0;
+
+            renderAsset();
         }
 
         function renderAsset() {
@@ -164,7 +153,6 @@ init();
                 abContainer.appendChild(row);
             });
 
-            // Handle Asset Trackers (Health, Integrity, etc)
             if (assetDetails.control) {
                 document.getElementById('tracker-container').style.display = 'flex';
                 document.getElementById('tracker-label').innerText = assetDetails.control.name;
@@ -175,19 +163,19 @@ init();
         async function toggleAbility(index) {
             localState.abilities[index] = !localState.abilities[index];
             renderAsset();
-            // Store the array as a string so Google Sheets handles it easily
             await saveStat(charId, `${assetSlug}_abilities`, JSON.stringify(localState.abilities));
+            await saveStat(charId, "history_entry", `Asset Updated: ${assetDetails.name} abilities modified.`);
         }
 
         async function adjustTracker(amt) {
             localState.tracker += amt;
-            // Bound checks based on Datasworn (defaulting to 0-6 if not specified)
             const max = assetDetails.control?.max || 6;
             if (localState.tracker < 0) localState.tracker = 0;
             if (localState.tracker > max) localState.tracker = max;
 
             document.getElementById('tracker-val').innerText = localState.tracker;
             await saveStat(charId, `${assetSlug}_tracker`, localState.tracker);
+            await saveStat(charId, "history_entry", `${assetDetails.name} tracker set to ${localState.tracker}`);
         }
 
         init();
