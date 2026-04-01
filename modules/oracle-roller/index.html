@@ -102,7 +102,7 @@
 
             // Sync to Google Sheet
             if (typeof saveStat === "function") {
-                saveStat(charId, "last_roll", `[${dieRoll}] ${entry.result} (${oracle.name})`);
+                saveStat(charId, "history_entry", `ORACLE [${dieRoll}]: ${entry.result} (${oracle.name})`);
             }
         }
 
