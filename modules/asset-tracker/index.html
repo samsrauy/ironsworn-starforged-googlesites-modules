@@ -105,7 +105,28 @@
                     break;
                 }
             }
+         async function init() {
+             document.body.classList.add(`theme-${game}`);
+             if (!assetSlug) return;
 
+             // Fetch the rulebook data FIRST
+             const allAssets = await fetchDatasworn(game, 'assets.json');
+             for (let cat in allAssets.assets) {
+                 if (allAssets.assets[cat].assets[assetSlug]) {
+                     assetDetails = allAssets.assets[cat].assets[assetSlug];
+                     break;
+                    }
+             }
+
+    if (assetDetails) {
+        // ONLY start the heartbeat if we successfully found the asset
+        startHeartbeat(renderAsset, 35000); 
+        
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('asset-ui').style.display = 'block';
+    }
+}
+init();
             if (assetDetails) {
                 // 3. Sync with Google Sheet
                 const saved = await loadStats(charId);
