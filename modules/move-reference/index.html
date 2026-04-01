@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../../css/style.css">
+    <style>
+        .move-container { max-width: 500px; margin: 0 auto; }
+        select { 
+            width: 100%; 
+            padding: 10px; 
+            margin-bottom: 8px; 
+            background: #1a1c23; 
+            color: var(--text); 
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+        .move-card {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.02);
+            border-radius: 8px;
+        }
+        .move-title { 
+            color: var(--accent); 
+            font-size: 1.4rem; 
+            font-weight: bold; 
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        .move-trigger { font-style: italic; margin-bottom: 15px; opacity: 0.9; line-height: 1.4; }
+        .move-outcome { font-size: 0.95rem; line-height: 1.6; }
+        .outcome-box { margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; }
+        strong { color: var(--accent); }
+    </style>
+</head>
+<body>
+
+    <div class="move-container">
+        <div id="loader">Consulting the Truths...</div>
+
+        <div id="move-ui" style="display:none;">
+            <label style="font-size: 0.7rem; opacity: 0.5;">MOVE CATEGORY</label>
+            <select id="category-select" onchange="updateMoveList()"></select>
+            
+            <label style="font-size: 0.7rem; opacity: 0.5;">SPECIFIC MOVE</label>
+            <select id="move-select" onchange="displayMove()"></select>
+            
+            <div id="move-display" class="move-card">
+                <div id="m-title" class="move-title">Select a Move</div>
+                <div id="m-trigger" class="move-trigger">The rules of the iron lands await...</div>
+                <div id="m-text" class="move-outcome"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../js/datasworn.js"></script>
+    <script>
+        let moveData = null;
+        const params = new URLSearchParams(window.location.search);
+        const game = params.get('game') || 'starforged';
+
+        /**
+         * INITIALIZATION: Setup theme and fetch moves
+         */
+        async function init() {
+            document.body.classList.add(`theme-${game}`);
+            
+            // Datasworn stores moves in 'moves.json'
+            moveData = await fetchDatasworn(game, 'moves.json');
+            
+            if (moveData) {
+                const catSelect = document.getElementById('category-select');
+                
+                // Populating Categories (e.g., Session, Combat)
+                Object.keys(moveData.moves).forEach(catKey => {
+                    let opt = document.createElement('option');
+                    opt.value = catKey;
+                    opt.innerText = moveData.moves[catKey].name;
+                    catSelect.appendChild(opt);
+                });
+                
+                updateMoveList();
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('move-ui').style.display = 'block';
+            }
+        }
+
+        /**
+         * UI LOGIC: Fill the second dropdown based on category
+         */
+        function updateMoveList() {
+            const catKey = document.getElementById('category-select').value;
+            const moveSelect = document.getElementById('move-select');
+            moveSelect.innerHTML = '';
+            
+            const category = moveData.moves[catKey];
+            const moves = category.moves || {};
+            
+            Object.keys(moves).forEach(mKey => {
+                let opt = document.createElement('option');
+                opt.value = mKey;
+                opt.innerText = moves[mKey].name;
+                moveSelect.appendChild(opt);
+            });
+            displayMove();
+        }
+
+        /**
+         * DISPLAY LOGIC: Render the move text
+         */
+        function displayMove() {
+            const catKey = document.getElementById('category-select').value;
+            const mKey = document.getElementById('move-select').value;
+            const move = moveData.moves[catKey].moves[mKey];
+
+            document.getElementById('m-title').innerText = move.name;
+            document.getElementById('m-trigger').innerText = move.trigger.text;
+            
+            // Datasworn uses Markdown-like structures for outcomes. 
+            // For this version, we will focus on the plain text 'outcomes'.
+            let outcomeHtml = "";
+            if (move.outcomes) {
+                if (move.outcomes.strong_hit) outcomeHtml += `<div class="outcome-box"><strong>Strong Hit:</strong> ${move.outcomes.strong_hit.text}</div>`;
+                if (move.outcomes.weak_hit) outcomeHtml += `<div class="outcome-box"><strong>Weak Hit:</strong> ${move.outcomes.weak_hit.text}</div>`;
+                if (move.outcomes.miss) outcomeHtml += `<div class="outcome-box"><strong>Miss:</strong> ${move.outcomes.miss.text}</div>`;
+            }
+            
+            document.getElementById('m-text').innerHTML = outcomeHtml;
+        }
+
+        init();
+    </script>
+</body>
+</html>
