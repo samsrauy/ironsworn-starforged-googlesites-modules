@@ -46,6 +46,8 @@ async function saveStat(id, statName, value) {
 
 /**
  * Retrieves data from the Google Sheet (GET)
+ * A timestamp to the URL ensures we always get the "Live" data,
+ * not a cached version from the browser.
  */
 async function loadStats(id) {
     if (!GAS_URL) {
@@ -54,11 +56,23 @@ async function loadStats(id) {
     }
 
     try {
-        const response = await fetch(`${GAS_URL}?id=${id}`);
-        if (!response.ok) throw new Error("Network response was not ok");
+        // Add a unique timestamp (?t=12345) to bypass browser caching
+        const cacheBuster = `&t=${new Date().getTime()}`;
+        const finalUrl = `${GAS_URL}?id=${id}${cacheBuster}`;
+
+        const response = await fetch(finalUrl, {
+            method: "GET",
+            redirect: "follow", // Explicitly follow Google's 302 redirects
+            headers: {
+                "Content-Type": "text/plain;charset=utf-8",
+            }
+        });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
         return await response.json();
     } catch (error) {
-        console.error("Fetch failed:", error);
+        console.error("Fetch failed (Check your GAS Deployment settings):", error);
         return {};
     }
 }
