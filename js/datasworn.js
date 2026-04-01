@@ -14,3 +14,12 @@ async function fetchDatasworn(game, category) {
         return null;
     }
 }
+
+/**
+ * Finds the correct row in a Datasworn table based on a 1-100 roll.
+ * @param {Array} table - The 'table' array from a Datasworn JSON object.
+ * @param {number} roll - A number between 1 and 100.
+ */
+function getOracleResult(table, roll) {
+    return table.find(row => roll >= row.floor && roll <= row.ceil);
+}
