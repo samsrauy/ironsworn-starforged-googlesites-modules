@@ -1,0 +1,43 @@
+:root {
+    /* Starforged Theme Colors */
+    --sf-bg: #0b0d10;
+    --sf-border: #454d5d;
+    --sf-accent: #cd5a29; /* Orange */
+    --sf-text: #e2e4e9;
+    --sf-font: 'Exo 2', 'Segoe UI', sans-serif;
+}
+
+body {
+    background-color: var(--sf-bg);
+    color: var(--sf-text);
+    font-family: var(--sf-font);
+    margin: 0;
+    padding: 10px;
+    overflow: hidden; /* Important for clean iframes */
+}
+
+.module-container {
+    border: 1px solid var(--sf-border);
+    padding: 1rem;
+    border-radius: 4px;
+}
+
+button {
+    background: transparent;
+    color: var(--sf-accent);
+    border: 1px solid var(--sf-accent);
+    padding: 5px 15px;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-weight: bold;
+    transition: 0.2s;
+}
+
+button:hover {
+    background: var(--sf-accent);
+    color: white;
+}
+
+/* Scrollbar styling for a sleek look */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-thumb { background: var(--sf-border); }
