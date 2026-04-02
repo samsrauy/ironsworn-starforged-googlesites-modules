@@ -16,17 +16,23 @@
         input { background: #000; border: 1px solid #00ff9d; color: #00ff9d; padding: 10px; margin: 10px 0; width: 300px; font-family: 'Share Tech Mono', monospace; }
         .boot-btn { background: #00ff9d; color: #000; border: none; padding: 12px 30px; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 20px; }
 
-        /* Main Dashboard Grid */
-        #dashboard { display: none; grid-template-columns: 350px 1fr 350px; grid-template-rows: 1fr 300px; height: 100vh; gap: 10px; padding: 10px; box-sizing: border-box; }
+        /* Main Dashboard Grid Fixes */
+        #dashboard { 
+            display: none; 
+            grid-template-columns: 350px 1fr 350px; 
+            /* Added a 3rd row for the browser */
+            grid-template-rows: 1fr 200px 200px; 
+            height: 100vh; gap: 10px; padding: 10px; box-sizing: border-box; 
+        }
         iframe { width: 100%; height: 100%; border: 1px solid #1a1c23; background: #0b0d12; border-radius: 4px; }
         
-        /* Grid Positioning */
-        .grid-char { grid-row: 1 / 3; }
+        /* Grid Positioning Fixes */
+        .grid-char { grid-row: 1 / 4; } /* Extended to span all 3 rows */
         .grid-map { grid-column: 2; grid-row: 1; }
         .grid-journal { grid-column: 2; grid-row: 2; }
-        .grid-browser { grid-column: 2, grid-row: 3; }
+        .grid-browser { grid-column: 2; grid-row: 3; } /* Fixed syntax (semicolon) */
         .grid-assets { grid-column: 3; grid-row: 1; }
-        .grid-oracle { grid-column: 3; grid-row: 2; }
+        .grid-oracle { grid-column: 3; grid-row: 2 / 4; } /* Oracle now spans the bottom right */
     </style>
 </head>
 <body>
@@ -76,11 +82,9 @@
 
         function init() {
             if (sheetId && charName) {
-                // Hide login, show dashboard
                 document.getElementById('setup-screen').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'grid';
 
-                // Load modules into iframes with the shared credentials
                 const query = `?sheet=${sheetId}&id=${charName}`;
                 document.getElementById('frame-char').src = `modules/character-sheet/index.html${query}`;
                 document.getElementById('frame-map').src = `modules/map/index.html${query}`;
@@ -96,7 +100,6 @@
             const cName = document.getElementById('name-input').value.trim();
 
             if (sId && cName) {
-                // Reload page with parameters to trigger the Neural Link
                 window.location.href = `index.html?sheet=${sId}&id=${cName}`;
             } else {
                 alert("VOID ERROR: Credentials incomplete.");
