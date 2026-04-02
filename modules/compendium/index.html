@@ -11,8 +11,8 @@
         .panel { display: none; }
         .panel.active { display: block; }
         select, button { width: 100%; margin-bottom: 8px; background: #1a1c23; color: white; border: 1px solid #454d5d; padding: 8px; font-size: 0.75rem; }
-        .output-card { background: rgba(255,255,255,0.05); padding: 12px; border-left: 3px solid var(--accent); margin-top: 10px; font-size: 0.8rem; }
-        .sync-btn { font-size: 0.6rem; padding: 4px; width: auto; float: right; margin-top: 5px; }
+        .output-card { background: rgba(255,255,255,0.05); padding: 12px; border-left: 3px solid var(--accent); margin-top: 10px; font-size: 0.8rem; line-height: 1.4; }
+        .sync-btn { font-size: 0.6rem; padding: 4px 8px; width: auto; float: right; margin-top: 5px; border-color: var(--accent); color: var(--accent); }
     </style>
 </head>
 <body class="theme-starforged">
@@ -40,18 +40,22 @@
         <div id="npc-display" class="output-card">Awaiting sensor sweep...</div>
     </div>
 
+    <script src="../../js/datasworn.js"></script>
     <script src="../../js/sync.js"></script>
+
     <script>
         let datasworn = null;
-        const DATA_URL = "https://raw.githubusercontent.com/rsek/datasworn/master/datasworn/starforged/starforged.json";
 
         async function init() {
-            try {
-                const res = await fetch(DATA_URL);
-                datasworn = await res.json();
+            // Use the Global Header logic to fetch data
+            datasworn = await DATASWORN_CONFIG.fetchData();
+            if (datasworn) {
                 populateMoves();
                 populateOracleCats();
-            } catch (e) { console.error("Data Load Error"); }
+                console.log("Compendium: Neural Link Established.");
+            } else {
+                document.getElementById('move-display').innerHTML = "CORE DATA OFFLINE";
+            }
         }
 
         function showTab(id) {
@@ -61,9 +65,12 @@
             event.currentTarget.classList.add('active');
         }
 
+        // --- MOVES LOGIC ---
         function populateMoves() {
             const mCat = document.getElementById('move-cat');
-            for (let key in datasworn.moves) mCat.add(new Option(datasworn.moves[key].name, key));
+            for (let key in datasworn.moves) {
+                mCat.add(new Option(datasworn.moves[key].name, key));
+            }
             loadMoves();
         }
 
@@ -72,7 +79,9 @@
             const list = document.getElementById('move-list');
             list.innerHTML = "";
             const contents = datasworn.moves[catKey].contents;
-            for (let key in contents) list.add(new Option(contents[key].name, key));
+            for (let key in contents) {
+                list.add(new Option(contents[key].name, key));
+            }
             displayMove();
         }
 
@@ -80,12 +89,20 @@
             const catKey = document.getElementById('move-cat').value;
             const moveKey = document.getElementById('move-list').value;
             const move = datasworn.moves[catKey].contents[moveKey];
-            document.getElementById('move-display').innerHTML = `<div class="output-card">${(move.text || move.description).replace(/\n/g, '<br>')}</div>`;
+            const text = move.text || move.description || "No data available.";
+            document.getElementById('move-display').innerHTML = `
+                <div class="output-card">
+                    <strong>${move.name}</strong><br><br>
+                    ${text.replace(/\n/g, '<br>')}
+                </div>`;
         }
 
+        // --- ORACLES LOGIC ---
         function populateOracleCats() {
             const oraCat = document.getElementById('ora-cat');
-            for (let key in datasworn.oracles) oraCat.add(new Option(datasworn.oracles[key].name, key));
+            for (let key in datasworn.oracles) {
+                oraCat.add(new Option(datasworn.oracles[key].name, key));
+            }
             loadOracleTables();
         }
 
@@ -94,13 +111,17 @@
             const list = document.getElementById('ora-list');
             list.innerHTML = "";
             const cat = datasworn.oracles[catKey];
+
+            // Handle direct tables
             if (cat.contents) {
-                for (let k in cat.contents) list.add(new Option(cat.contents[k].name, `direct/${k}`));
+                for (let k in cat.contents) list.add(new Option(cat.contents[k].name, `direct/0/${k}`));
             }
+            // Handle nested collections (e.g., Space > Planets)
             if (cat.collections) {
                 for (let ck in cat.collections) {
-                    for (let tk in cat.collections[ck].contents) 
-                        list.add(new Option(`${cat.collections[ck].name}: ${cat.collections[ck].contents[tk].name}`, `${ck}/sub/${tk}`));
+                    for (let tk in cat.collections[ck].contents) {
+                        list.add(new Option(`${cat.collections[ck].name}: ${cat.collections[ck].contents[tk].name}`, `sub/${ck}/${tk}`));
+                    }
                 }
             }
         }
@@ -108,27 +129,47 @@
         function rollOracle() {
             const catKey = document.getElementById('ora-cat').value;
             const path = document.getElementById('ora-list').value.split('/');
-            let table = (path[0] === 'direct') ? datasworn.oracles[catKey].contents[path[1]] : datasworn.oracles[catKey].collections[path[0]].contents[path[2]];
+            const type = path[0]; // 'direct' or 'sub'
+            const subKey = path[1];
+            const tableKey = path[2];
+
+            let table = (type === 'direct') 
+                ? datasworn.oracles[catKey].contents[tableKey] 
+                : datasworn.oracles[catKey].collections[subKey].contents[tableKey];
             
             const roll = Math.floor(Math.random() * 100) + 1;
-            const row = table.rows.find(r => roll >= r.floor && roll <= r.ceiling);
+            const row = DATASWORN_CONFIG.getResult(table, roll);
             const result = row.text || row.result;
 
             document.getElementById('ora-display').innerHTML = `
                 <div class="output-card">
-                    <div style="color:var(--accent); font-weight:bold;">${result}</div>
-                    <div style="font-size:0.6rem; opacity:0.5;">Roll: ${roll} | ${table.name}</div>
-                    <button class="sync-btn" onclick="saveStat(charId, 'history_entry', 'ORACLE: ${result}')">LOG</button>
+                    <div style="color:var(--accent); font-weight:bold; font-size:1rem;">${result}</div>
+                    <div style="font-size:0.6rem; opacity:0.5; margin-top:5px;">Roll: ${roll} | Source: ${table.name}</div>
+                    <button class="sync-btn" onclick="saveStat('${charId}', 'history_entry', 'ORACLE [${table.name}]: ${result}')">LOG TO HISTORY</button>
                 </div>`;
         }
 
+        // --- NPC GENERATOR ---
         function generateNPC() {
-            const nameTab = datasworn.oracles.characters.collections.name.contents.given;
-            const roleTab = datasworn.oracles.characters.contents.role;
-            const roll = (t) => t.rows.find(r => (Math.floor(Math.random()*100)+1) >= r.floor && (Math.floor(Math.random()*100)+1) <= r.ceiling).text;
+            // Simplified helper to roll on specific tables
+            const rollOn = (cat, sub, tab) => {
+                const table = datasworn.oracles[cat].collections[sub].contents[tab];
+                const r = Math.floor(Math.random() * 100) + 1;
+                return DATASWORN_CONFIG.getResult(table, r).text;
+            };
             
-            const name = roll(nameTab), role = roll(roleTab);
-            document.getElementById('npc-display').innerHTML = `<strong>${name}</strong><br>${role}<br><button class="sync-btn" onclick="saveStat(charId, 'history_entry', 'NPC: ${name} (${role})')">LOG</button>`;
+            try {
+                const name = rollOn('characters', 'name', 'given');
+                const role = datasworn.oracles.characters.contents.role.rows[Math.floor(Math.random()*100)].text;
+                
+                document.getElementById('npc-display').innerHTML = `
+                    <div style="color:var(--accent); font-weight:bold;">${name}</div>
+                    <div style="font-size:0.75rem; margin-bottom:10px;">${role}</div>
+                    <button class="sync-btn" onclick="saveStat('${charId}', 'history_entry', 'NPC GENERATED: ${name}, ${role}')">LOG ENCOUNTER</button>
+                `;
+            } catch (e) {
+                console.error("NPC Gen Error", e);
+            }
         }
 
         init();
