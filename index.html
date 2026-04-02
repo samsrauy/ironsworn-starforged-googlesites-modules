@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>STARFORGED // VOID-LINK TERMINAL</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; background: #050508; color: #00ff9d; font-family: 'Exo 2', sans-serif; overflow: hidden; }
+        
+        /* Setup / Login Screen */
+        #setup-screen { 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            height: 100vh; text-align: center; background: radial-gradient(circle, #0a0a1a 0%, #000 100%);
+        }
+        .setup-box { background: rgba(0, 255, 153, 0.05); border: 1px solid #00ff9d; padding: 40px; border-radius: 8px; box-shadow: 0 0 30px rgba(0, 255, 153, 0.1); }
+        input { background: #000; border: 1px solid #00ff9d; color: #00ff9d; padding: 10px; margin: 10px 0; width: 300px; font-family: 'Share Tech Mono', monospace; }
+        .boot-btn { background: #00ff9d; color: #000; border: none; padding: 12px 30px; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 20px; }
+
+        /* Main Dashboard Grid */
+        #dashboard { display: none; grid-template-columns: 350px 1fr 350px; grid-template-rows: 1fr 300px; height: 100vh; gap: 10px; padding: 10px; box-sizing: border-box; }
+        iframe { width: 100%; height: 100%; border: 1px solid #1a1c23; background: #0b0d12; border-radius: 4px; }
+        
+        /* Grid Positioning */
+        .grid-char { grid-row: 1 / 3; }
+        .grid-map { grid-column: 2; grid-row: 1; }
+        .grid-journal { grid-column: 2; grid-row: 2; }
+        .grid-assets { grid-column: 3; grid-row: 1; }
+        .grid-oracle { grid-column: 3; grid-row: 2; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <div class="setup-box">
+            <h1 style="letter-spacing: 5px;">VOID-LINK</h1>
+            <p style="opacity: 0.6; font-size: 0.8rem; margin-bottom: 30px;">NEURAL INTERFACE TERMINAL v3.1</p>
+            
+            <input type="text" id="sheet-input" placeholder="ENTER SPREADSHEET ID">
+            <br>
+            <input type="text" id="name-input" placeholder="ENTER CHARACTER NAME">
+            <br>
+            <button class="boot-btn" onclick="establishLink()">Initialize Uplink</button>
+            
+            <p style="font-size: 0.6rem; margin-top: 20px; opacity: 0.4;">
+                The Spreadsheet ID is found in your Google Sheet URL between /d/ and /edit
+            </p>
+        </div>
+    </div>
+
+    <div id="dashboard">
+        <div class="grid-char">
+            <iframe id="frame-char" src=""></iframe>
+        </div>
+        <div class="grid-map">
+            <iframe id="frame-map" src=""></iframe>
+        </div>
+        <div class="grid-journal">
+            <iframe id="frame-journal" src=""></iframe>
+        </div>
+        <div class="grid-assets">
+            <iframe id="frame-tracker" src=""></iframe>
+        </div>
+        <div class="grid-oracle">
+            <iframe id="frame-oracle" src=""></iframe>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const sheetId = params.get('sheet');
+        const charName = params.get('id');
+
+        function init() {
+            if (sheetId && charName) {
+                // Hide login, show dashboard
+                document.getElementById('setup-screen').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'grid';
+
+                // Load modules into iframes with the shared credentials
+                const query = `?sheet=${sheetId}&id=${charName}`;
+                document.getElementById('frame-char').src = `modules/character-sheet/index.html${query}`;
+                document.getElementById('frame-map').src = `modules/navigation/index.html${query}`;
+                document.getElementById('frame-journal').src = `modules/journal/index.html${query}`;
+                document.getElementById('frame-tracker').src = `modules/asset-tracker/index.html${query}`;
+                document.getElementById('frame-oracle').src = `modules/secret-oracle/index.html${query}`;
+            }
+        }
+
+        function establishLink() {
+            const sId = document.getElementById('sheet-input').value.trim();
+            const cName = document.getElementById('name-input').value.trim();
+
+            if (sId && cName) {
+                // Reload page with parameters to trigger the Neural Link
+                window.location.href = `index.html?sheet=${sId}&id=${cName}`;
+            } else {
+                alert("VOID ERROR: Credentials incomplete.");
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
