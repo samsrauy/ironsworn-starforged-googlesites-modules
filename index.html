@@ -79,9 +79,10 @@
                 // Load modules into iframes with the shared credentials
                 const query = `?sheet=${sheetId}&id=${charName}`;
                 document.getElementById('frame-char').src = `modules/character-sheet/index.html${query}`;
-                document.getElementById('frame-map').src = `modules/navigation/index.html${query}`;
+                document.getElementById('frame-map').src = `modules/map/index.html${query}`;
                 document.getElementById('frame-journal').src = `modules/journal/index.html${query}`;
                 document.getElementById('frame-tracker').src = `modules/asset-tracker/index.html${query}`;
+                document.getElementById('frame-tracker').src = `modules/asset-browser/index.html${query}`;
                 document.getElementById('frame-oracle').src = `modules/secret-oracle/index.html${query}`;
             }
         }
