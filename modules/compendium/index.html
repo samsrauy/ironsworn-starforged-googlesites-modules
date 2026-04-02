@@ -12,20 +12,20 @@
         .panel { display: none; padding-bottom: 40px; animation: fadeIn 0.3s ease; }
         .panel.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        select, button { background: #111; border: 1px solid #444; color: white; padding: 8px; width: 100%; margin-bottom: 8px; font-size: 0.75rem; border-radius: 4px; }
-        button { cursor: pointer; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        select, button { background: #111; border: 1px solid #444; color: white; padding: 8px; width: 100%; margin-bottom: 8px; font-size: 0.75rem; border-radius: 4px; outline: none; }
+        button { cursor: pointer; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; }
         button:hover { background: var(--accent); color: black; }
-        .output-card { background: rgba(255,255,255,0.03); padding: 12px; border-left: 2px solid var(--accent); margin-top: 10px; font-size: 0.85rem; line-height: 1.5; }
+        .output-card { background: rgba(255,255,255,0.03); padding: 12px; border-left: 2px solid var(--accent); margin-top: 10px; font-size: 0.8rem; line-height: 1.5; }
         .sync-btn { border: 1px solid #444; color: #888; background: none; margin-top: 10px; font-size: 0.6rem; padding: 4px; width: auto; float: right; }
         .npc-name { font-size: 1.1rem; color: var(--accent); margin-bottom: 5px; border-bottom: 1px solid #222; padding-bottom: 5px; text-transform: uppercase; }
-        #init-status { padding: 10px; font-size: 0.7rem; border-radius: 4px; }
+        #init-status { padding: 10px; font-size: 0.7rem; color: var(--accent); font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="tabs">
         <div class="tab active" onclick="showPanel('moves')">Moves</div>
-        <div class="tab" onclick="document.readyState === 'complete' && showPanel('oracles')">Oracles</div>
+        <div class="tab" onclick="showPanel('oracles')">Oracles</div>
         <div class="tab" onclick="showPanel('npcs')">NPCs</div>
         <div class="tab" onclick="showPanel('truths')">Truths</div>
         <div class="tab" onclick="showPanel('init')">INIT</div>
@@ -46,28 +46,27 @@
 
     <div id="npcs" class="panel">
         <button onclick="generateNPC()">GENERATE CONTACT/FOE</button>
-        <div id="npc-display" class="output-card">Click to scan...</div>
+        <div id="npc-display" class="output-card">Awaiting sensor sweep...</div>
     </div>
 
     <div id="truths" class="panel">
-       <div id="truth-list">Loading truths...</div>
+       <div id="truth-list">Loading world parameters...</div>
     </div>
 
     <div id="init" class="panel">
-        <div style="font-size:0.65rem; opacity:0.6; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">NEURAL LINK INITIALIZATION</div>
-        <button onclick="rollCreation('background')">ROLL BACKGROUND</button>
-        <div id="create-bg" class="output-card">Awaiting background...</div>
-        <button onclick="rollCreation('starship')">ROLL STARSHIP NAME</button>
-        <div id="create-ship" class="output-card">Awaiting ship name...</div>
-        <button style="background:var(--accent); color:black; margin-top:15px; height: 50px;" onclick="finalizeCharacter()">INITIALIZE CHARACTER ROW</button>
+        <div style="font-size:0.6rem; opacity:0.6; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">CHARACTER INITIALIZATION</div>
+        <button onclick="rollCreation('background')">GENERATE BACKGROUND</button>
+        <div id="create-bg" class="output-card">...</div>
+        <button onclick="rollCreation('starship')">GENERATE SHIP NAME</button>
+        <div id="create-ship" class="output-card">...</div>
+        <button style="background:var(--accent); color:black; margin-top:15px;" onclick="finalizeCharacter()">SET BASE STATS & LOG</button>
         <div id="init-status"></div>
     </div>
 
     <script src="../../js/sync.js"></script>
     <script>
         let datasworn = null;
-        // Using JSDelivr for stability and to avoid 404/CORS issues
-        const DATA_URL = "https://cdn.jsdelivr.net/gh/rsek/datasworn@main/bundles/starforged.json";
+        const DATA_URL = "https://cdn.jsdelivr.net/gh/rsek/datasworn@main/pkg/nodejs/@datasworn/starforged/json/starforged.json";
 
         async function init() {
             try {
@@ -78,141 +77,144 @@
                 populateMoves();
                 populateOracleCats();
                 renderTruths();
-                console.log("Compendium Initialized.");
+                console.log("Compendium Sync Complete.");
             } catch (e) {
-                console.error("Initialization Failed:", e);
-                document.getElementById('move-display').innerHTML = `<div style="color:#f87171">ERROR: Data link failed. Check console.</div>`;
+                document.getElementById('move-display').innerHTML = `<div style="color:red">ERROR: DATABASE OFFLINE</div>`;
             }
         }
 
         function showPanel(id) {
             document.querySelectorAll('.panel, .tab').forEach(el => el.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            const clickedTab = Array.from(document.querySelectorAll('.tab')).find(t => t.getAttribute('onclick').includes(id));
-            if (clickedTab) clickedTab.classList.add('active');
+            // Logic to visually highlight tab
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(t => { if(t.innerText.toLowerCase() === id) t.classList.add('active'); });
         }
 
         function populateMoves() {
-            if (!datasworn) return;
             const moveCat = document.getElementById('move-cat');
             moveCat.innerHTML = "";
-            Object.keys(datasworn.moves).forEach(k => moveCat.add(new Option(datasworn.moves[k].name, k)));
+            for (let key in datasworn.moves) {
+                moveCat.add(new Option(datasworn.moves[key].name, key));
+            }
             loadMoves();
         }
 
-        function populateOracleCats() {
-            if (!datasworn) return;
-            const oraCat = document.getElementById('ora-cat');
-            oraCat.innerHTML = "";
-            Object.keys(datasworn.oracles).forEach(k => oraCat.add(new Option(datasworn.oracles[k].name, k)));
-            loadOracleTables();
-        }
-
         function loadMoves() {
-            const cat = document.getElementById('move-cat').value;
+            const catKey = document.getElementById('move-cat').value;
             const list = document.getElementById('move-list');
             list.innerHTML = "";
-            Object.keys(datasworn.moves[cat].contents).forEach(k => list.add(new Option(datasworn.moves[cat].contents[k].name, k)));
+            const contents = datasworn.moves[catKey].contents;
+            for (let key in contents) {
+                list.add(new Option(contents[key].name, key));
+            }
             displayMove();
         }
 
         function displayMove() {
-            const cat = document.getElementById('move-cat').value;
-            const key = document.getElementById('move-list').value;
-            const move = datasworn.moves[cat].contents[key];
+            const catKey = document.getElementById('move-cat').value;
+            const moveKey = document.getElementById('move-list').value;
+            const move = datasworn.moves[catKey].contents[moveKey];
             document.getElementById('move-display').innerHTML = `<div class="output-card">${move.text.replace(/\n/g, '<br>')}</div>`;
         }
 
+        function populateOracleCats() {
+            const oraCat = document.getElementById('ora-cat');
+            oraCat.innerHTML = "";
+            for (let key in datasworn.oracles) {
+                oraCat.add(new Option(datasworn.oracles[key].name, key));
+            }
+            loadOracleTables();
+        }
+
         function loadOracleTables() {
-            const cat = document.getElementById('ora-cat').value;
+            const catKey = document.getElementById('ora-cat').value;
             const list = document.getElementById('ora-list');
             list.innerHTML = "";
-            const contents = datasworn.oracles[cat].contents || {};
-            Object.keys(contents).forEach(k => list.add(new Option(contents[k].name, k)));
+            const contents = datasworn.oracles[catKey].contents || {};
+            for (let key in contents) {
+                list.add(new Option(contents[key].name, key));
+            }
         }
 
         function rollOracle() {
-            const cat = document.getElementById('ora-cat').value;
-            const key = document.getElementById('ora-list').value;
-            const table = datasworn.oracles[cat].contents[key];
+            const catKey = document.getElementById('ora-cat').value;
+            const tableKey = document.getElementById('ora-list').value;
+            const table = datasworn.oracles[catKey].contents[tableKey];
             const roll = Math.floor(Math.random() * 100) + 1;
             const row = table.rows.find(r => roll >= r.floor && roll <= r.ceiling);
+            
             document.getElementById('ora-display').innerHTML = `
                 <div class="output-card">
                     <div style="color:var(--accent); font-weight:bold;">${row.text}</div>
-                    <div style="font-size:0.6rem; opacity:0.5; margin-top:5px;">Rolled: ${roll} on ${table.name}</div>
+                    <div style="font-size:0.6rem; opacity:0.5; margin-top:5px;">Result: ${roll} | Table: ${table.name}</div>
                     <button class="sync-btn" onclick="logToHistory('ORACLE: ${table.name} -> ${row.text}')">LOG RESULT</button>
                     <div style="clear:both;"></div>
                 </div>`;
         }
 
         function generateNPC() {
-            if (!datasworn) return;
-            const roll = (c, t) => {
+            const getRoll = (c, t) => {
                 const tab = datasworn.oracles[c].contents[t];
                 const r = Math.floor(Math.random() * 100) + 1;
                 return tab.rows.find(row => r >= row.floor && r <= row.ceiling).text;
             };
-            const name = roll('characters', 'name');
-            const role = roll('characters', 'role');
-            const goal = roll('characters', 'goal');
-            const desc = roll('characters', 'descriptor');
+            const name = getRoll('characters', 'name');
+            const role = getRoll('characters', 'role');
+            const goal = getRoll('characters', 'goal');
+            const desc = getRoll('characters', 'descriptor');
+            
             document.getElementById('npc-display').innerHTML = `
                 <div class="npc-name">${name}</div>
                 <div>${desc} ${role}</div>
-                <div style="margin-top:10px; font-style:italic; opacity: 0.8;">Goal: ${goal}</div>
-                <button class="sync-btn" onclick="logToHistory('NPC DISCOVERED: ${name} (${desc} ${role}) Goal: ${goal}')">LOG NPC</button>
+                <div style="margin-top:8px; font-size:0.75rem; opacity: 0.7;">Goal: ${goal}</div>
+                <button class="sync-btn" onclick="logToHistory('NPC: ${name} (${desc} ${role})')">LOG NPC</button>
                 <div style="clear:both;"></div>`;
         }
 
         function renderTruths() {
-            if (!datasworn) return;
             const truths = datasworn.setting_truths;
             document.getElementById('truth-list').innerHTML = Object.keys(truths).map(k => `
-                <div style="margin-bottom:15px;">
-                    <div style="font-size:0.65rem; color:var(--accent); margin-bottom:5px; font-weight:bold;">${truths[k].name}</div>
+                <div style="margin-bottom:12px; border-bottom:1px solid #222; padding-bottom:8px;">
+                    <div style="font-size:0.6rem; color:var(--accent); margin-bottom:4px;">${truths[k].name.toUpperCase()}</div>
                     <select onchange="saveTruth('${k}', this.value)">
-                        <option>Select...</option>
-                        ${truths[k].table.rows.map(r => `<option value="${r.text}">${r.text.substring(0,40)}...</option>`).join('')}
+                        <option>Choose Option...</option>
+                        ${truths[k].table.rows.map(r => `<option value="${r.text}">${r.text.substring(0,45)}...</option>`).join('')}
                     </select>
                 </div>`).join('');
         }
 
         async function saveTruth(cat, val) {
-            await saveStat(charId, "history_entry", `WORLD TRUTH: ${datasworn.setting_truths[cat].name} -> ${val}`);
-            alert("Truth updated.");
+            await saveStat(charId, "history_entry", `WORLD-DATA: ${datasworn.setting_truths[cat].name} -> ${val}`);
+            document.getElementById('init-status').innerText = "WORLD PARAMETERS UPDATED.";
         }
 
         async function logToHistory(text) {
             await saveStat(charId, "history_entry", text);
-            console.log("Logged:", text);
         }
 
         function rollCreation(type) {
-            if (!datasworn) return;
-            const getResult = (pathArray) => {
-                let current = datasworn.oracles;
-                pathArray.forEach(key => {
-                    if (current[key]) current = current[key];
-                    else if (current.contents && current.contents[key]) current = current.contents[key];
-                });
-                const r = Math.floor(Math.random() * 100) + 1;
-                const row = current.rows.find(row => r >= row.floor && r <= row.ceiling);
-                return row ? row.text : "Error reading data...";
-            };
-            if (type === 'background') document.getElementById('create-bg').innerText = getResult(['characters', 'background']);
-            if (type === 'starship') document.getElementById('create-ship').innerText = getResult(['space', 'starship_name']);
+            let cat = (type === 'background') ? 'characters' : 'space';
+            let table = (type === 'background') ? 'background' : 'starship_name';
+            const tab = datasworn.oracles[cat].contents[table];
+            const r = Math.floor(Math.random() * 100) + 1;
+            const res = tab.rows.find(row => r >= row.floor && r <= row.ceiling).text;
+            
+            if (type === 'background') document.getElementById('create-bg').innerText = res;
+            else document.getElementById('create-ship').innerText = res;
         }
 
         async function finalizeCharacter() {
             const status = document.getElementById('init-status');
-            status.innerHTML = "UPLINKING...";
+            status.innerHTML = "UPLINKING CHARACTER DATA...";
             const bg = document.getElementById('create-bg').innerText;
             const ship = document.getElementById('create-ship').innerText;
+            
             const stats = {"health":5,"spirit":5,"supply":5,"momentum":2,"edge":2,"heart":2,"iron":2,"shadow":2,"wits":2};
             for (const [s, v] of Object.entries(stats)) { await saveStat(charId, s, v); }
-            await saveStat(charId, "history_entry", `INIT: ${charId} | ${bg} | Ship: ${ship}`);
-            status.innerHTML = "SUCCESS: Link Active.";
+            
+            await saveStat(charId, "history_entry", `INIT: ${charId} | BG: ${bg} | Ship: ${ship}`);
+            status.innerHTML = "NEURAL LINK ESTABLISHED. LOG UPDATED.";
         }
 
         init();
