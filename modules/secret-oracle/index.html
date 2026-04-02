@@ -40,7 +40,13 @@
 
         async function askOracle() {
             const prompt = input.value.trim();
-            if (!prompt || !GAS_URL) return;
+            
+            // Neural Link Guard
+            if (!GAS_URL) {
+                appendMsg("LINK ERROR: Handshake not yet complete.", 'system-msg');
+                return;
+            }
+            if (!prompt) return;
 
             // UI Feedback
             input.value = "";
@@ -49,17 +55,18 @@
             const loadingId = appendMsg("COMMUNICATION IN PROGRESS...", 'system-msg');
 
             try {
-                // We use the 'oracle' parameter which Code.gs looks for in doGet
+                // Queries the Gemini-powered oracle in Code.gs [cite: 15, 38]
                 const response = await fetch(`${GAS_URL}?oracle=${encodeURIComponent(prompt)}`);
                 const text = await response.text();
                 
                 // Remove loading message
-                document.getElementById(loadingId).remove();
+                const loader = document.getElementById(loadingId);
+                if(loader) loader.remove();
                 
                 // Display AI response
                 appendMsg(text, 'ai-msg');
                 
-                // Log the interaction to the History Log
+                // Log the interaction to the History Log via Thin-Sync 
                 await saveStat(charId, "history_entry", `ORACLE QUERY: ${prompt}`);
 
             } catch (e) {
