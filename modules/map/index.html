@@ -5,188 +5,67 @@
     <link rel="stylesheet" href="../../css/style.css">
     <style>
         body { background: #0b0d12; color: #00ff9d; font-family: 'Exo 2', sans-serif; overflow: hidden; margin: 0; }
-        
         #navigation-deck { position: relative; width: 100vw; height: 100vh; background: radial-gradient(circle, #0a0a1a 0%, #000 100%); }
-        
-        #hex-grid { 
-            position: absolute; width: 200%; height: 200%; 
-            background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
-            opacity: 0.1; pointer-events: none;
-        }
-
-        .map-controls { 
-            position: absolute; top: 10px; left: 10px; z-index: 100; 
-            display: flex; gap: 10px; background: rgba(0,0,0,0.8); padding: 10px; border: 1px solid #00ff9d44;
-        }
-        .region-btn { 
-            background: transparent; border: 1px solid #00ff9d88; color: #00ff9d; 
-            padding: 5px 15px; cursor: pointer; font-size: 0.7rem; letter-spacing: 1px;
-        }
-        .region-btn.active { background: #00ff9d; color: #000; }
-
-        /* Waypoints */
-        .waypoint {
-            position: absolute; width: 12px; height: 12px; 
-            background: #fff; border-radius: 50%; cursor: pointer;
-            box-shadow: 0 0 10px #fff; transition: transform 0.2s;
-            z-index: 10;
-        }
-        .waypoint:hover { transform: scale(1.5); box-shadow: 0 0 20px #00ff9d; background: #00ff9d; }
-        .waypoint-label { 
-            position: absolute; top: 15px; left: -20px; font-size: 0.6rem; 
-            white-space: nowrap; color: #00ff9d; text-shadow: 1px 1px 2px #000;
-        }
-
-        /* Player Ship */
-        #player-ship {
-            position: absolute; width: 24px; height: 24px;
-            border: 2px solid #ff0055; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 20; pointer-events: none;
-            opacity: 0; /* Hidden until initialized */
-        }
+        .waypoint { position: absolute; width: 12px; height: 12px; background: #fff; border-radius: 50%; cursor: pointer; box-shadow: 0 0 10px #fff; z-index: 10; }
+        .waypoint-label { position: absolute; top: 15px; left: -20px; font-size: 0.6rem; color: #00ff9d; white-space: nowrap; }
+        #player-ship { position: absolute; width: 20px; height: 20px; border: 2px solid #ff0055; border-radius: 50%; transition: all 0.8s ease; opacity: 0; z-index: 20; }
         #player-ship.active { opacity: 1; }
-        #player-ship::after { content: '▲'; color: #ff0055; font-size: 12px; }
-
-        /* Status Message */
-        .status-overlay {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(255, 0, 85, 0.2); border: 1px solid #ff0055;
-            color: #ff0055; padding: 10px 20px; font-size: 0.7rem; 
-            text-transform: uppercase; letter-spacing: 2px; z-index: 100;
-            animation: blink 2s infinite;
-        }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-
-        /* Sidebar */
-        #manifest {
-            position: absolute; right: 0; top: 0; width: 180px; height: 100%;
-            background: rgba(0,0,0,0.9); border-left: 1px solid #00ff9d44;
-            padding: 20px; font-size: 0.8rem; pointer-events: all;
-        }
-        .manifest-entry { margin-bottom: 15px; padding-bottom: 5px; border-bottom: 1px solid #ffffff11; cursor: pointer; }
-        .manifest-entry:hover { color: #fff; }
+        .status-overlay { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border: 1px solid #ff0055; color: #ff0055; padding: 10px; font-size: 0.7rem; text-transform: uppercase; }
     </style>
 </head>
 <body class="theme-starforged">
-
     <div id="navigation-deck">
-        <div id="hex-grid"></div>
-
-        <div class="map-controls">
-            <button class="region-btn active" onclick="setRegion('Terminus', this)">TERMINUS</button>
-            <button class="region-btn" onclick="setRegion('Outlands', this)">OUTLANDS</button>
-            <button class="region-btn" onclick="setRegion('Expanse', this)">EXPANSE</button>
-        </div>
-
         <div id="map-area"></div>
         <div id="player-ship"></div>
         <div id="status-msg" class="status-overlay">Initializing Nav-Link...</div>
-
-        <div id="manifest">
-            <h3 style="font-size: 0.7rem; color: #888; letter-spacing: 2px;">SECTOR MANIFEST</h3>
-            <div id="manifest-list"></div>
-        </div>
     </div>
 
     <script src="../../js/sync.js"></script>
     <script>
-        let currentRegion = "Terminus";
-        let isInitialized = false;
-
-        const SECTOR_DATA = {
-            "Terminus": [
-                { name: "Ironholde Station", x: 20, y: 30, type: "Orbital" },
-                { name: "Vanguard Prime", x: 45, y: 60, type: "Planetary" },
-                { name: "The Drift", x: 75, y: 25, type: "Derelict" }
-            ],
-            "Outlands": [
-                { name: "Dust-7", x: 30, y: 50, type: "Settlement" },
-                { name: "Broken Anchor", x: 60, y: 80, type: "Outpost" }
-            ],
-            "Expanse": [
-                { name: "Void-Reach", x: 80, y: 80, type: "Anomaly" },
-                { name: "Silence-4", x: 20, y: 15, type: "Ghost-Station" }
-            ]
-        };
+        const LOCS = [
+            { name: "Ironholde", x: 20, y: 30 },
+            { name: "Vanguard Prime", x: 45, y: 60 },
+            { name: "The Drift", x: 75, y: 25 }
+        ];
 
         async function initMap() {
-            if (!charId) {
-                document.getElementById('status-msg').innerText = "ERROR: NO CHARACTER ID";
-                return;
+            if (!charId) return;
+            const stats = await loadStats(charId); // Corrected function name
+            if (stats && stats.ship_pos && stats.ship_pos !== "0,0") {
+                const [x, y] = stats.ship_pos.split(',');
+                moveShip(x, y);
+                document.getElementById('status-msg').style.display = 'none';
+            } else {
+                document.getElementById('status-msg').innerText = "Select Entry Vector";
             }
-
-            try {
-                const stats = await getStats(charId);
-                const savedPos = stats.ship_pos;
-                
-                if (savedPos && savedPos !== "0,0") {
-                    const [x, y] = savedPos.split(',');
-                    updateShipUI(x, y);
-                    document.getElementById('status-msg').style.display = 'none';
-                    isInitialized = true;
-                } else {
-                    document.getElementById('status-msg').innerText = "Select Entry Vector";
-                }
-                renderRegion();
-            } catch (e) {
-                console.error("Map Load Error:", e);
-                document.getElementById('status-msg').innerText = "SIGNAL INTERRUPTED";
-            }
+            renderPoints();
         }
 
-        function setRegion(region, btn) {
-            currentRegion = region;
-            document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            renderRegion();
-        }
-
-        function renderRegion() {
-            const mapArea = document.getElementById('map-area');
-            const list = document.getElementById('manifest-list');
-            mapArea.innerHTML = "";
-            list.innerHTML = "";
-
-            SECTOR_DATA[currentRegion].forEach(loc => {
+        function renderPoints() {
+            const area = document.getElementById('map-area');
+            LOCS.forEach(l => {
                 const dot = document.createElement('div');
                 dot.className = 'waypoint';
-                dot.style.left = loc.x + "%";
-                dot.style.top = loc.y + "%";
-                dot.onclick = () => handleLocationClick(loc);
-                dot.innerHTML = `<div class="waypoint-label">${loc.name}</div>`;
-                mapArea.appendChild(dot);
-
-                const entry = document.createElement('div');
-                entry.className = 'manifest-entry';
-                entry.innerHTML = `<strong>${loc.name}</strong><br><small style="color:#888">${loc.type}</small>`;
-                entry.onclick = () => handleLocationClick(loc);
-                list.appendChild(entry);
+                dot.style.left = l.x + "%"; dot.style.top = l.y + "%";
+                dot.onclick = () => updatePos(l);
+                dot.innerHTML = `<div class="waypoint-label">${l.name}</div>`;
+                area.appendChild(dot);
             });
         }
 
-        async function handleLocationClick(loc) {
-            if (!isInitialized) {
-                isInitialized = true;
-                document.getElementById('status-msg').style.display = 'none';
-                await saveStat(charId, "history_entry", `NAV: Entry vector confirmed at ${loc.name}`);
-            } else {
-                await saveStat(charId, "history_entry", `NAV: Relocating to ${loc.name}`);
-            }
-
-            updateShipUI(loc.x, loc.y);
-            await saveStat(charId, "ship_pos", `${loc.x},${loc.y}`);
+        async function updatePos(l) {
+            moveShip(l.x, l.y);
+            document.getElementById('status-msg').style.display = 'none';
+            await saveStat(charId, "ship_pos", `${l.x},${l.y}`);
+            await saveStat(charId, "history_entry", `NAV: Docked at ${l.name}`);
         }
 
-        function updateShipUI(x, y) {
-            const ship = document.getElementById('player-ship');
-            ship.classList.add('active');
-            ship.style.left = x + "%";
-            ship.style.top = y + "%";
+        function moveShip(x, y) {
+            const s = document.getElementById('player-ship');
+            s.classList.add('active');
+            s.style.left = x + "%"; s.style.top = y + "%";
         }
 
-        // Delay slightly to ensure charId is parsed from sync.js
         setTimeout(initMap, 500);
     </script>
 </body>
