@@ -1,91 +1,159 @@
-<style>
-    #player-ship { opacity: 0; pointer-events: none; }
-    #player-ship.active { opacity: 1; }
-    
-    .status-overlay {
-        position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-        background: rgba(255, 0, 85, 0.2); border: 1px solid #ff0055;
-        color: #ff0055; padding: 10px 20px; font-size: 0.7rem; 
-        text-transform: uppercase; letter-spacing: 2px; z-index: 100;
-        animation: blink 2s infinite;
-    }
-    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-</style>
-
-<div id="status-msg" class="status-overlay">Awaiting Entry Vector...</div>
-
-<script>
-    let isInitialized = false;
-
-    async function initMap() {
-        const stats = await getStats(charId);
-        const savedPos = stats.ship_pos;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../../css/style.css">
+    <style>
+        body { background: #000; color: #00ff9d; font-family: 'Exo 2', sans-serif; overflow: hidden; margin: 0; }
         
-        // Only show the ship if we have real coordinates (not 0,0 or null)
-        if (savedPos && savedPos !== "0,0") {
-            const [x, y] = savedPos.split(',');
-            updateShipUI(x, y);
-            document.getElementById('status-msg').style.display = 'none';
-            isInitialized = true;
-        } else {
-            // Ship is hidden, waiting for first click
-            document.getElementById('player-ship').classList.remove('active');
-            document.getElementById('status-msg').innerText = "Select Sector Entry Point";
-        }
-        renderRegion();
-    }
-
-    async function handleLocationClick(loc) {
-        if (!isInitialized) {
-            // INITIAL POSITION LOGIC
-            isInitialized = true;
-            document.getElementById('status-msg').style.display = 'none';
-            document.getElementById('player-ship').classList.add('active');
-            
-            await saveStat(charId, "history_entry", `SYSTEM: Trans-space entry at ${loc.name}`);
-        } else {
-            // NORMAL TRAVEL LOGIC (This is where the Jump Button will go later)
-            const currentPos = (await getStats(charId)).ship_pos;
-            if (currentPos === `${loc.x},${loc.y}`) return; // Already here
-            
-            await saveStat(charId, "history_entry", `NAV: Adjusting course to ${loc.name}`);
+        /* Map Container */
+        #navigation-deck { position: relative; width: 100vw; height: 100vh; background: radial-gradient(circle, #0a0a1a 0%, #000 100%); }
+        
+        /* Hex Grid Overlay */
+        #hex-grid { 
+            position: absolute; width: 200%; height: 200%; 
+            background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+            opacity: 0.1; pointer-events: none;
         }
 
-        // Move ship and save
-        updateShipUI(loc.x, loc.y);
-        await saveStat(charId, "ship_pos", `${loc.x},${loc.y}`);
-    }
+        /* Region Header */
+        .map-controls { 
+            position: absolute; top: 10px; left: 10px; z-index: 100; 
+            display: flex; gap: 10px; background: rgba(0,0,0,0.8); padding: 10px; border: 1px solid #00ff9d44;
+        }
+        .region-btn { 
+            background: transparent; border: 1px solid #00ff9d88; color: #00ff9d; 
+            padding: 5px 15px; cursor: pointer; font-size: 0.7rem; letter-spacing: 1px;
+        }
+        .region-btn.active { background: #00ff9d; color: #000; }
 
-    function updateShipUI(x, y) {
-        const ship = document.getElementById('player-ship');
-        ship.classList.add('active');
-        ship.style.left = x + "%";
-        ship.style.top = y + "%";
-    }
+        /* Waypoints */
+        .waypoint {
+            position: absolute; width: 12px; height: 12px; 
+            background: #fff; border-radius: 50%; cursor: pointer;
+            box-shadow: 0 0 10px #fff; transition: transform 0.2s;
+            z-index: 10;
+        }
+        .waypoint:hover { transform: scale(1.5); box-shadow: 0 0 20px #00ff9d; background: #00ff9d; }
+        .waypoint-label { 
+            position: absolute; top: 15px; left: -20px; font-size: 0.6rem; 
+            white-space: nowrap; color: #00ff9d; text-shadow: 1px 1px 2px #000;
+        }
 
-    // Update your renderRegion function to use the new handler
-    function renderRegion() {
-        const mapArea = document.getElementById('map-area');
-        const list = document.getElementById('manifest-list');
-        mapArea.innerHTML = "";
-        list.innerHTML = "";
+        /* Player Ship */
+        #player-ship {
+            position: absolute; width: 24px; height: 24px;
+            border: 2px solid #ff0055; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 20; pointer-events: none;
+        }
+        #player-ship::after { content: '▲'; color: #ff0055; font-size: 12px; }
 
-        SECTOR_DATA[currentRegion].forEach(loc => {
-            const dot = document.createElement('div');
-            dot.className = 'waypoint';
-            dot.style.left = loc.x + "%";
-            dot.style.top = loc.y + "%";
-            // USE THE NEW HANDLER
-            dot.onclick = () => handleLocationClick(loc);
-            
-            dot.innerHTML = `<div class="waypoint-label">${loc.name}</div>`;
-            mapArea.appendChild(dot);
+        /* Sector Manifest (Sidebar) */
+        #manifest {
+            position: absolute; right: 0; top: 0; width: 200px; height: 100%;
+            background: rgba(0,0,0,0.9); border-left: 1px solid #00ff9d44;
+            padding: 20px; font-size: 0.8rem; pointer-events: all;
+        }
+        .manifest-entry { margin-bottom: 15px; padding-bottom: 5px; border-bottom: 1px solid #ffffff11; cursor: pointer; }
+        .manifest-entry:hover { color: #fff; }
+    </style>
+</head>
+<body>
 
-            const entry = document.createElement('div');
-            entry.className = 'manifest-entry';
-            entry.innerHTML = `<strong>${loc.name}</strong><br><small>${loc.type}</small>`;
-            entry.onclick = () => handleLocationClick(loc);
-            list.appendChild(entry);
-        });
-    }
-</script>
+    <div id="navigation-deck">
+        <div id="hex-grid"></div>
+
+        <div class="map-controls">
+            <button class="region-btn active" onclick="setRegion('Terminus', this)">TERMINUS</button>
+            <button class="region-btn" onclick="setRegion('Outlands', this)">OUTLANDS</button>
+            <button class="region-btn" onclick="setRegion('Expanse', this)">EXPANSE</button>
+        </div>
+
+        <div id="map-area">
+            </div>
+
+        <div id="player-ship"></div>
+
+        <div id="manifest">
+            <h3 style="font-size: 0.7rem; color: #888;">SECTOR MANIFEST</h3>
+            <div id="manifest-list"></div>
+        </div>
+    </div>
+
+    <script src="../../js/sync.js"></script>
+    <script>
+        let currentRegion = "Terminus";
+        
+        // Mock Data - In a full build, you'd roll these or pull from a JSON
+        const SECTOR_DATA = {
+            "Terminus": [
+                { id: 1, name: "Ironholde Station", x: 20, y: 30, type: "Orbital" },
+                { id: 2, name: "Vanguard Prime", x: 45, y: 60, type: "Planetary" },
+                { id: 3, name: "The Drift", x: 70, y: 20, type: "Derelict" }
+            ],
+            "Outlands": [
+                { id: 4, name: "Dust-7", x: 30, y: 50, type: "Settlement" }
+            ],
+            "Expanse": [
+                { id: 5, name: "Void-Reach", x: 80, y: 80, type: "Anomaly" }
+            ]
+        };
+
+        async function initMap() {
+            const stats = await getStats(charId);
+            const savedPos = stats.ship_pos || "20,30"; // Default to Ironholde
+            updateShipUI(savedPos.split(',')[0], savedPos.split(',')[1]);
+            renderRegion();
+        }
+
+        function setRegion(region, btn) {
+            currentRegion = region;
+            document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderRegion();
+        }
+
+        function renderRegion() {
+            const mapArea = document.getElementById('map-area');
+            const list = document.getElementById('manifest-list');
+            mapArea.innerHTML = "";
+            list.innerHTML = "";
+
+            SECTOR_DATA[currentRegion].forEach(loc => {
+                // Add Dot to Map
+                const dot = document.createElement('div');
+                dot.className = 'waypoint';
+                dot.style.left = loc.x + "%";
+                dot.style.top = loc.y + "%";
+                dot.onclick = () => moveToLocation(loc);
+                dot.innerHTML = `<div class="waypoint-label">${loc.name}</div>`;
+                mapArea.appendChild(dot);
+
+                // Add to Manifest
+                const entry = document.createElement('div');
+                entry.className = 'manifest-entry';
+                entry.innerHTML = `<strong>${loc.name}</strong><br><small>${loc.type}</small>`;
+                entry.onclick = () => moveToLocation(loc);
+                list.appendChild(entry);
+            });
+        }
+
+        async function moveToLocation(loc) {
+            updateShipUI(loc.x, loc.y);
+            // Save to Google Sheet
+            await saveStat(charId, "ship_pos", `${loc.x},${loc.y}`);
+            await saveStat(charId, "history_entry", `Nav-Comp: Arrived at ${loc.name}`);
+        }
+
+        function updateShipUI(x, y) {
+            const ship = document.getElementById('player-ship');
+            ship.style.left = x + "%";
+            ship.style.top = y + "%";
+        }
+
+        initMap();
+    </script>
+</body>
+</html>
