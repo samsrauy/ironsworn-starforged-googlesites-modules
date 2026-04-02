@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../../css/style.css">
+    <style>
+        body { background: #050508; color: #e0e0e0; font-family: 'Courier New', monospace; padding: 10px; overflow-x: hidden; }
+        .tabs { display: flex; border-bottom: 1px solid #333; margin-bottom: 10px; position: sticky; top: 0; background: #050508; z-index: 5; }
+        .tab { padding: 8px 10px; cursor: pointer; font-size: 0.6rem; border: 1px solid transparent; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px; }
+        .tab.active { border: 1px solid #333; border-bottom: 1px solid #050508; opacity: 1; color: var(--accent); }
+        
+        .panel { display: none; padding-bottom: 40px; }
+        .panel.active { display: block; }
+
+        select, button { background: #111; border: 1px solid #444; color: white; padding: 6px; width: 100%; margin-bottom: 8px; font-size: 0.7rem; }
+        button { cursor: pointer; font-weight: bold; text-transform: uppercase; }
+        button:hover { background: var(--accent); color: black; }
+
+        /* Moves/Oracle Display */
+        .output-card { background: rgba(255,255,255,0.03); padding: 12px; border-left: 2px solid var(--accent); margin-top: 10px; font-size: 0.8rem; line-height: 1.4; }
+        .sync-btn { border: 1px solid #444; color: #888; background: none; margin-top: 10px; font-size: 0.6rem; }
+        
+        .npc-name { font-size: 1.1rem; color: var(--accent); margin-bottom: 5px; border-bottom: 1px solid #222; padding-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="tabs">
+        <div class="tab active" onclick="showPanel('moves')">Moves</div>
+        <div class="tab" onclick="showPanel('oracles')">Oracles</div>
+        <div class="tab" onclick="showPanel('npcs')">NPCs</div>
+        <div class="tab" onclick="showPanel('truths')">Truths</div>
+    </div>
+
+    <div id="moves" class="panel active">
+        <select id="move-cat" onchange="loadMoves()"></select>
+        <select id="move-list" onchange="displayMove()"></select>
+        <div id="move-display"></div>
+    </div>
+
+    <div id="oracles" class="panel">
+        <select id="ora-cat" onchange="loadOracleTables()"></select>
+        <select id="ora-list"></select>
+        <button onclick="rollOracle()">ROLL d100</button>
+        <div id="ora-display"></div>
+    </div>
+
+    <div id="npcs" class="panel">
+        <button onclick="generateNPC()">GENERATE CONTACT/FOE</button>
+        <div id="npc-display" class="output-card">Click generate to scan for lifesigns...</div>
+    </div>
+
+    <div id="truths" class="panel">
+        <div id="truth-list"></div>
+    </div>
+
+    <script src="../../js/sync.js"></script>
+    <script>
+        let datasworn = null;
+        const DATA_URL = "https://raw.githubusercontent.com/rsek/datasworn/main/bundles/starforged.json";
+
+        async function init() {
+            const res = await fetch(DATA_URL);
+            datasworn = await res.json();
+            
+            // Populate Moves
+            const moveCat = document.getElementById('move-cat');
+            Object.keys(datasworn.moves).forEach(k => moveCat.add(new Option(datasworn.moves[k].name, k)));
+            loadMoves();
+
+            // Populate Oracle Categories
+            const oraCat = document.getElementById('ora-cat');
+            Object.keys(datasworn.oracles).forEach(k => oraCat.add(new Option(datasworn.oracles[k].name, k)));
+            loadOracleTables();
+            
+            renderTruths();
+        }
+
+        function showPanel(id) {
+            document.querySelectorAll('.panel, .tab').forEach(el => el.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        /* --- MOVES LOGIC --- */
+        function loadMoves() {
+            const cat = document.getElementById('move-cat').value;
+            const list = document.getElementById('move-list');
+            list.innerHTML = "";
+            Object.keys(datasworn.moves[cat].contents).forEach(k => list.add(new Option(datasworn.moves[cat].contents[k].name, k)));
+            displayMove();
+        }
+        function displayMove() {
+            const cat = document.getElementById('move-cat').value;
+            const key = document.getElementById('move-list').value;
+            const move = datasworn.moves[cat].contents[key];
+            document.getElementById('move-display').innerHTML = `<div class="output-card">${move.text.replace(/\n/g, '<br>')}</div>`;
+        }
+
+        /* --- ORACLE LOGIC --- */
+        function loadOracleTables() {
+            const cat = document.getElementById('ora-cat').value;
+            const list = document.getElementById('ora-list');
+            list.innerHTML = "";
+            Object.keys(datasworn.oracles[cat].contents || {}).forEach(k => list.add(new Option(datasworn.oracles[cat].contents[k].name, k)));
+        }
+        function rollOracle() {
+            const cat = document.getElementById('ora-cat').value;
+            const key = document.getElementById('ora-list').value;
+            const table = datasworn.oracles[cat].contents[key];
+            const roll = Math.floor(Math.random() * 100) + 1;
+            const row = table.rows.find(r => roll >= r.floor && roll <= r.ceiling);
+            document.getElementById('ora-display').innerHTML = `
+                <div class="output-card">
+                    <div style="color:var(--accent); font-weight:bold;">${row.text}</div>
+                    <div style="font-size:0.6rem; opacity:0.5; margin-top:5px;">Rolled: ${roll} on ${table.name}</div>
+                    <button class="sync-btn" onclick="logToHistory('ORACLE: ${table.name} -> ${row.text}')">LOG RESULT</button>
+                </div>`;
+        }
+
+        /* --- NPC LOGIC --- */
+        function generateNPC() {
+            const roll = (c, t) => {
+                const tab = datasworn.oracles[c].contents[t];
+                const r = Math.floor(Math.random() * 100) + 1;
+                return tab.rows.find(row => r >= row.floor && r <= row.ceiling).text;
+            };
+            const name = roll('characters', 'name');
+            const role = roll('characters', 'role');
+            const goal = roll('characters', 'goal');
+            const desc = roll('characters', 'descriptor');
+            document.getElementById('npc-display').innerHTML = `
+                <div class="npc-name">${name}</div>
+                <div>${desc} ${role}</div>
+                <div style="margin-top:10px; font-style:italic;">Goal: ${goal}</div>
+                <button class="sync-btn" onclick="logToHistory('NPC: ${name} (${desc} ${role}) Goal: ${goal}')">LOG NPC</button>`;
+        }
+
+        /* --- TRUTHS LOGIC --- */
+        function renderTruths() {
+            const truths = datasworn.setting_truths;
+            document.getElementById('truth-list').innerHTML = Object.keys(truths).map(k => `
+                <div style="margin-bottom:10px;">
+                    <div style="font-size:0.6rem; color:var(--accent)">${truths[k].name}</div>
+                    <select onchange="saveTruth('${k}', this.value)">
+                        <option>Choose Truth...</option>
+                        ${truths[k].table.rows.map(r => `<option value="${r.text}">${r.text.substring(0,35)}...</option>`).join('')}
+                    </select>
+                </div>`).join('');
+        }
+        async function saveTruth(cat, val) {
+            await saveStat(charId, "history_entry", `WORLD TRUTH: ${datasworn.setting_truths[cat].name} -> ${val}`);
+            alert("Truth updated in shared log.");
+        }
+
+        async function logToHistory(text) {
+            await saveStat(charId, "history_entry", text);
+            alert("Logged to history.");
+        }
+
+        init();
+    </script>
+</body>
+</html>
