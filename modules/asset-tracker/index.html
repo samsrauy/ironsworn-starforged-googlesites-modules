@@ -2,60 +2,71 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../../css/style.css">
     <style>
+        body { background: transparent; color: #e0e0e0; font-family: 'Exo 2', sans-serif; }
         .asset-card { 
             max-width: 400px; 
-            margin: 0 auto;
+            margin: 10px auto;
             border: 1px solid var(--border); 
-            background: rgba(255,255,255,0.02); 
+            background: rgba(0,0,0,0.8); 
             border-radius: 8px; 
             padding: 18px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
-        .asset-type { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px; opacity: 0.6; margin-bottom: 4px; }
-        .asset-name { font-size: 1.5rem; color: var(--accent); font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .asset-type { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 2px; opacity: 0.5; margin-bottom: 4px; color: var(--accent); }
+        .asset-name { font-size: 1.3rem; color: #fff; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
         
         .ability-row { 
             display: flex; 
             align-items: flex-start; 
-            margin-bottom: 12px; 
+            margin-bottom: 10px; 
             padding: 8px; 
             border-radius: 4px; 
             cursor: pointer;
             transition: 0.2s; 
+            background: rgba(255,255,255,0.02);
         }
-        .ability-row:hover { background: rgba(255,255,255,0.05); }
+        .ability-row:hover { background: rgba(var(--accent-rgb), 0.1); }
         
         .checkbox { 
-            width: 20px; height: 20px; border: 2px solid var(--accent); 
+            width: 18px; height: 18px; border: 2px solid var(--accent); 
             margin-right: 12px; margin-top: 2px; flex-shrink: 0;
             display: flex; align-items: center; justify-content: center;
-            border-radius: 2px;
+            border-radius: 3px;
         }
         .checkbox.checked::after { 
-            content: "✔"; 
+            content: "✦"; 
             color: var(--accent); 
-            font-size: 16px; 
-            font-weight: bold;
+            font-size: 14px; 
         }
         
-        .ability-text { font-size: 0.9rem; line-height: 1.4; opacity: 0.9; }
+        .ability-text { font-size: 0.8rem; line-height: 1.4; opacity: 0.9; }
         
         .tracker-area { 
             margin-top: 15px; 
             padding-top: 15px; 
-            border-top: 1px solid var(--border); 
+            border-top: 1px solid #333; 
             display: flex; 
             align-items: center; 
             justify-content: space-between; 
         }
-        .tracker-controls button { padding: 4px 12px; font-size: 1rem; }
-        #loader { text-align: center; padding: 20px; font-style: italic; }
+        .tracker-controls button { 
+            padding: 2px 10px; 
+            background: #222; 
+            border: 1px solid #444; 
+            color: white; 
+            cursor: pointer;
+            font-family: monospace;
+        }
+        .tracker-controls button:hover { border-color: var(--accent); }
+        #loader { text-align: center; padding: 40px; font-size: 0.8rem; letter-spacing: 1px; opacity: 0.6; }
     </style>
 </head>
 <body>
 
-    <div id="loader">Syncing Asset Data...</div>
+    <div id="loader">ESTABLISHING NEURAL LINK...</div>
 
     <div id="asset-ui" style="display:none;" class="asset-card">
         <div id="a-type" class="asset-type">Asset</div>
@@ -64,21 +75,21 @@
         <div id="abilities"></div>
 
         <div id="tracker-container" class="tracker-area" style="display:none;">
-            <span id="tracker-label" style="font-weight: bold; text-transform: uppercase; font-size: 0.8rem;">Tracker</span>
+            <span id="tracker-label" style="font-weight: bold; text-transform: uppercase; font-size: 0.65rem; opacity: 0.7;">Tracker</span>
             <div class="tracker-controls">
                 <button onclick="adjustTracker(-1)">-</button>
-                <span id="tracker-val" style="margin: 0 15px; font-family: monospace; font-size: 1.2rem;">0</span>
+                <span id="tracker-val" style="margin: 0 15px; font-family: monospace; font-size: 1.1rem; color: var(--accent);">0</span>
                 <button onclick="adjustTracker(1)">+</button>
             </div>
         </div>
     </div>
 
-    <script src="../../js/datasworn.js"></script>
     <script src="../../js/sync.js"></script>
     <script>
         const assetParams = new URLSearchParams(window.location.search);
         const assetSlug = assetParams.get('asset'); 
         const game = assetParams.get('game') || 'starforged';
+        const DATA_URL = "https://cdn.jsdelivr.net/gh/rsek/datasworn@main/bundles/starforged.json";
         
         let assetDetails = null;
         let localState = { 
@@ -90,45 +101,48 @@
             document.body.classList.add(`theme-${game}`);
             
             if (!assetSlug) { 
-                document.getElementById('loader').innerText = "Missing ?asset=[slug] parameter."; 
+                document.getElementById('loader').innerText = "ERROR: NO ASSET SLUG PROVIDED"; 
                 return; 
             }
 
-            // 1. Fetch Datasworn Data
-            const allAssets = await fetchDatasworn(game, 'assets.json');
-            
-            for (let category in allAssets.assets) {
-                const found = allAssets.assets[category].assets[assetSlug];
-                if (found) {
-                    assetDetails = found;
-                    break;
+            try {
+                // 1. Fetch Data from CDN
+                const res = await fetch(DATA_URL);
+                const data = await res.json();
+                
+                // 2. Find Asset
+                for (let category in data.assets) {
+                    const found = data.assets[category].contents[assetSlug];
+                    if (found) {
+                        assetDetails = found;
+                        assetDetails.categoryName = data.assets[category].name;
+                        break;
+                    }
                 }
-            }
 
-            if (assetDetails) {
-                // 2. Start the Pulse
-                // This replaces the old loadStats call and setInterval
-                startHeartbeat(syncWithSheet, 35000);
-
-                document.getElementById('loader').style.display = 'none';
-                document.getElementById('asset-ui').style.display = 'block';
-            } else {
-                document.getElementById('loader').innerText = `Asset "${assetSlug}" not found.`;
+                if (assetDetails) {
+                    startHeartbeat(syncWithSheet, 20000);
+                    document.getElementById('loader').style.display = 'none';
+                    document.getElementById('asset-ui').style.display = 'block';
+                    await syncWithSheet();
+                } else {
+                    document.getElementById('loader').innerText = `ERROR: ASSET [${assetSlug}] NOT FOUND`;
+                }
+            } catch (e) {
+                document.getElementById('loader').innerText = "OFFLINE: DATABASE UNREACHABLE";
             }
         }
 
-        /**
-         * THE REFRESH FUNCTION
-         * This is what startHeartbeat calls every 35s
-         */
         async function syncWithSheet() {
             const saved = await loadStats(charId);
             
+            // Handle Abilities
             const savedAbilities = saved[`${assetSlug}_abilities`];
             if (savedAbilities) {
                 try { localState.abilities = JSON.parse(savedAbilities); } catch(e) {}
             }
             
+            // Handle Tracker
             localState.tracker = parseInt(saved[`${assetSlug}_tracker`]) || 0;
 
             renderAsset();
@@ -136,7 +150,7 @@
 
         function renderAsset() {
             document.getElementById('a-name').innerText = assetDetails.name;
-            document.getElementById('a-type').innerText = assetDetails.asset_type.replace(/_/g, ' ');
+            document.getElementById('a-type').innerText = assetDetails.categoryName;
             
             const abContainer = document.getElementById('abilities');
             abContainer.innerHTML = '';
@@ -164,18 +178,21 @@
             localState.abilities[index] = !localState.abilities[index];
             renderAsset();
             await saveStat(charId, `${assetSlug}_abilities`, JSON.stringify(localState.abilities));
-            await saveStat(charId, "history_entry", `Asset Updated: ${assetDetails.name} abilities modified.`);
+            await saveStat(charId, "history_entry", `COMM-LOG: ${assetDetails.name} upgraded/modified.`);
         }
 
         async function adjustTracker(amt) {
-            localState.tracker += amt;
             const max = assetDetails.control?.max || 6;
-            if (localState.tracker < 0) localState.tracker = 0;
-            if (localState.tracker > max) localState.tracker = max;
+            let newVal = localState.tracker + amt;
+            if (newVal < 0) newVal = 0;
+            if (newVal > max) newVal = max;
 
-            document.getElementById('tracker-val').innerText = localState.tracker;
-            await saveStat(charId, `${assetSlug}_tracker`, localState.tracker);
-            await saveStat(charId, "history_entry", `${assetDetails.name} tracker set to ${localState.tracker}`);
+            if (newVal !== localState.tracker) {
+                localState.tracker = newVal;
+                document.getElementById('tracker-val').innerText = localState.tracker;
+                await saveStat(charId, `${assetSlug}_tracker`, localState.tracker);
+                await saveStat(charId, "history_entry", `COMM-LOG: ${assetDetails.name} tracker adjusted to ${localState.tracker}`);
+            }
         }
 
         init();
