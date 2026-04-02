@@ -134,15 +134,28 @@
         async function refreshSheet() {
             const data = await loadStats(charId);
             if (!data) return;
-            Object.keys(pc).forEach(key => {
-                if (data[key] !== undefined) {
-                    if (key === 'impacts' || key === 'tracks') pc[key] = JSON.parse(data[key] || "[]");
-                    else pc[key] = parseInt(data[key]);
-                }
-            });
-            render();
-        }
 
+            // Attributes (Edge, Heart, etc.)
+            ['edge','heart','iron','shadow','wits'].forEach(s => {
+                if (data[s] !== undefined) pc[s] = parseInt(data[s]);
+            });
+
+           // Vitals
+           ['health','spirit','supply','momentum','xp'].forEach(v => {
+               if (data[v] !== undefined) pc[v] = parseInt(data[v]);
+           });
+
+          // JSON Arrays (Impacts and Tracks)
+          if (data.impacts) {
+              try { pc.impacts = JSON.parse(data.impacts); } catch(e) { pc.impacts = []; }
+          }
+          if (data.tracks) {
+              try { pc.tracks = JSON.parse(data.tracks); } catch(e) { pc.tracks = []; }
+          }
+
+          render();
+        }
+        
         function render() {
             // Attributes
             ['edge','heart','iron','shadow','wits'].forEach(s => document.getElementById(`stat-${s}`).value = pc[s]);
