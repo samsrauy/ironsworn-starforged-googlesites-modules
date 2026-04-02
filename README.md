@@ -8,7 +8,10 @@ Todo: Probably change the name of the repo and all of the hard coded stuff in th
 
 ### System Overview
 Void-Link is a modular TTRPG interface. It decouples data (Datasworn), storage (Google Sheets), and logic (Google Apps Script) to create a persistent, platform-agnostic gaming terminal.
+<br><br>
+>This means, you just need a Google Account, a Google Sheet named whatever you want and shared per the permissions below, Google Sites (to place iframes/modules), the ability to add an App Script (under "Extensions" in Google Sheet), and an active internet connection (of course). Nothing else. No installing. No money. No problem (or potentially a few problems.)
 
+<br><br>
 **Quick note about access and permissions:**
 To ensure the Navigation Console can reach the Sector Database (Google Sheets), apply these settings:
 
@@ -21,8 +24,9 @@ To ensure the Navigation Console can reach the Sector Database (Google Sheets), 
 
 ### 🧩 The Component Stack
 
-**The Anchor (Google Sheet):** 
-The Google Sheet is the brain of the whole system. For the Auto-Discovery and Sync systems to work without requiring every player to log into a Google Account, you need a specific, two-part permission setup.
+**The Anchor (Google Sheet):**
+
+>Google Sheet is the brain of the whole system. For the Auto-Discovery and Sync systems to work without requiring every player to log into a Google Account, you need a specific, two-part permission setup.
 
 Since your script uses ```no-cors``` and the "Discovery" logic fetches the ```Settings``` tab as a CSV, the Google Sheet must have the following permissions:
 
@@ -34,17 +38,20 @@ Since your script uses ```no-cors``` and the "Discovery" logic fetches the ```Se
 **Why Viewer?**
 The "Web App" (the code in Code.gs) runs as "Me" (you). Since you own the sheet, the script has full edit rights. The "Viewer" permission for the public just allows the sync.js "Discovery" logic to read the api_url from your Settings tab.
 
-The Google Sheet itself needs 
-- Stats Tab: Rows of character data
+#### The Google Sheet itself needs
+|Stats Tab: Rows of character data   |
+|------------------------------------|
+|<img width="1348" height="305" alt="image" src="https://github.com/user-attachments/assets/6cacd9a4-9c97-412b-bdf4-bef8117ba772" />|
 
- <img width="258.6" height="359.4" alt="image" src="https://github.com/user-attachments/assets/f286f2d4-d2af-4129-8c00-e95cc8d6881c" />
-
-- Settings Tab: Contains api_url (B1) and game_type (B2)
-
-  <img width="370.8" height="359.4" alt="image" src="https://github.com/user-attachments/assets/3bea6f7b-77de-48e7-908a-01767aacaec9" />
-
+*Note: You can create a character by manually entering a character name in Column A. When you put the iframes into a master index.html file for your game, the character sheet will automatically generate default entries in the other fields.*
+<br><br>
+|Settings Tab: Contains api_url (B1) and game_type (B2)|
+|------------------------------------------------------|
+|<img width="804" height="305" alt="image" src="https://github.com/user-attachments/assets/32dd0c2e-6c45-46e0-aaed-2fdf3f938fee" />|
 
 **The Brain (Code.gs): A GAS Web App.**
+
+>The [Code.gs](https://github.com/samsrauy/ironsworn-starforged-googlesites-modules/blob/main/Google_Apps_Script) is hopefuly well commented for your use. Bascially it helps you create the only thing you need that is unique to your game play (other than the Google Sheet), the Web App URL.
 
 - GET: Returns JSON of character stats or Gemini Oracle text.
 
