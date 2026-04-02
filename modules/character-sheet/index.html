@@ -5,70 +5,65 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../../css/style.css">
     <style>
-        .sheet-grid { display: flex; flex-direction: column; gap: 20px; padding: 15px; max-width: 600px; margin: auto; }
-        .section-header { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px; opacity: 0.5; border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 10px; }
+        body { background: #050508; color: #e0e0e0; font-family: 'Courier New', monospace; padding: 10px; }
+        .sheet-grid { display: flex; flex-direction: column; gap: 15px; max-width: 600px; margin: auto; }
+        .section-header { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 2px; opacity: 0.5; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 8px; color: var(--accent); }
         
-        /* Core Stats (Edge, Heart, etc) */
-        .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; text-align: center; }
-        .stat-box { border: 1px solid var(--border); border-radius: 4px; padding: 5px; background: rgba(255,255,255,0.03); }
-        .stat-label { font-size: 0.55rem; opacity: 0.7; font-weight: bold; }
-        .stat-input { background: none; border: none; color: var(--accent); font-size: 1.2rem; font-weight: bold; width: 100%; text-align: center; font-family: 'Courier New', monospace; outline: none; }
+        /* Attributes with Rollers */
+        .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; text-align: center; }
+        .stat-box { border: 1px solid #333; border-radius: 4px; padding: 5px; background: rgba(255,255,255,0.03); cursor: pointer; transition: 0.2s; }
+        .stat-box:hover { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.1); }
+        .stat-label { font-size: 0.5rem; opacity: 0.7; font-weight: bold; pointer-events: none; }
+        .stat-input { background: none; border: none; color: var(--accent); font-size: 1.1rem; font-weight: bold; width: 100%; text-align: center; font-family: 'Courier New', monospace; outline: none; }
 
         /* Vitals Grid */
-        .vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .vital-item { border: 1px solid var(--border); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); }
+        .vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .vital-item { border: 1px solid #333; padding: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; background: #000; }
         .vital-info { display: flex; flex-direction: column; }
-        .vital-name { font-size: 0.65rem; text-transform: uppercase; opacity: 0.6; }
-        .vital-val { font-size: 1.5rem; font-weight: bold; color: var(--accent); }
-        .vital-btns button { width: 26px; height: 26px; cursor: pointer; background: rgba(255,255,255,0.1); border: 1px solid var(--border); color: white; border-radius: 3px; }
+        .vital-name { font-size: 0.55rem; text-transform: uppercase; opacity: 0.6; }
+        .vital-val { font-size: 1.3rem; font-weight: bold; color: var(--accent); }
+        .vital-btns button { width: 22px; height: 22px; cursor: pointer; background: #111; border: 1px solid #444; color: white; border-radius: 3px; font-size: 1rem; line-height: 1; }
         .vital-btns button:hover { background: var(--accent); color: black; }
 
-        /* Momentum Special Area */
-        .momentum-card { grid-column: span 2; border: 2px solid var(--accent); padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; background: rgba(var(--accent-rgb), 0.05); }
-        .burn-btn { background: #f87171; color: black; border: none; padding: 8px 15px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 0.7rem; text-transform: uppercase; }
-        .burn-btn:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
+        /* Momentum Area */
+        .momentum-card { grid-column: span 2; border: 1px solid var(--accent); padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,255,153, 0.05); }
+        .burn-btn { background: #f87171; color: black; border: none; padding: 6px 12px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 0.65rem; text-transform: uppercase; }
+        .burn-btn:disabled { opacity: 0.2; cursor: not-allowed; }
 
-        /* Dynamic Tracks & Clocks */
-        .track-card { border: 1px solid var(--border); background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; margin-bottom: 12px; }
-        .track-header { display: flex; justify-content: space-between; align-items: center; }
-        .progress-bar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin: 10px 0; }
-        .box { height: 18px; border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; border-radius: 2px; }
-        .box.filled { background: var(--accent); color: black; font-weight: bold; }
+        /* Progress Tracks & Clocks */
+        .track-card { border: 1px solid #333; background: #0a0a0c; padding: 10px; border-radius: 6px; margin-bottom: 8px; }
+        .track-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .progress-bar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+        .box { height: 16px; border: 1px solid #444; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 9px; border-radius: 2px; }
+        .box.filled { background: var(--accent); color: black; font-weight: bold; border-color: var(--accent); }
         
-        .clock-grid { display: flex; gap: 6px; margin-top: 8px; }
-        .clock-seg { width: 28px; height: 28px; border: 2px solid #f87171; border-radius: 50%; cursor: pointer; }
-        .clock-seg.active { background: #f87171; box-shadow: 0 0 8px #f87171; }
+        .clock-grid { display: flex; gap: 8px; justify-content: center; padding: 5px 0; }
+        .clock-seg { width: 24px; height: 24px; border: 2px solid #f87171; border-radius: 50%; cursor: pointer; transition: 0.3s; }
+        .clock-seg.active { background: #f87171; box-shadow: 0 0 10px rgba(248, 113, 113, 0.5); }
 
-        /* Impacts */
-        .impacts-flex { display: flex; flex-wrap: wrap; gap: 8px; }
-        .pill { padding: 4px 12px; border: 1px solid var(--border); border-radius: 20px; font-size: 0.7rem; cursor: pointer; opacity: 0.5; transition: 0.2s; }
-        .pill.active { opacity: 1; background: #f8717122; border-color: #f87171; color: #f87171; font-weight: bold; }
+        .impacts-flex { display: flex; flex-wrap: wrap; gap: 5px; }
+        .pill { padding: 3px 10px; border: 1px solid #444; border-radius: 15px; font-size: 0.6rem; cursor: pointer; opacity: 0.4; }
+        .pill.active { opacity: 1; background: rgba(248, 113, 113, 0.2); border-color: #f87171; color: #f87171; }
 
-        .add-btn { width: 100%; padding: 8px; border: 1px dashed var(--border); background: none; color: var(--text); cursor: pointer; margin-top: 5px; font-size: 0.7rem; opacity: 0.6; border-radius: 4px; }
-        .add-btn:hover { border-color: var(--accent); color: var(--accent); opacity: 1; }
-        .del-link { font-size: 0.6rem; color: #f87171; background: none; border: none; cursor: pointer; opacity: 0.6; }
-        .del-link:hover { opacity: 1; }
+        .add-btn { width: 100%; padding: 6px; border: 1px dashed #444; background: none; color: #888; cursor: pointer; font-size: 0.65rem; border-radius: 4px; }
+        .del-link { font-size: 0.5rem; color: #f87171; background: none; border: none; cursor: pointer; opacity: 0.5; }
     </style>
 </head>
 <body>
 
-    <div id="loader">INITIALIZING NEURAL LINK...</div>
-
-    <div id="sheet-ui" class="sheet-grid" style="display:none;">
-        
+    <div id="sheet-ui" class="sheet-grid">
         <section>
-            <div class="section-header">Core Attributes</div>
+            <div class="section-header">Core Stats (Click to Roll)</div>
             <div class="stats-row">
-                <div class="stat-box"><div class="stat-label">EDGE</div><input type="number" id="stat-edge" class="stat-input" onchange="updatePC('edge', this.value)"></div>
-                <div class="stat-box"><div class="stat-label">HEART</div><input type="number" id="stat-heart" class="stat-input" onchange="updatePC('heart', this.value)"></div>
-                <div class="stat-box"><div class="stat-label">IRON</div><input type="number" id="stat-iron" class="stat-input" onchange="updatePC('iron', this.value)"></div>
-                <div class="stat-box"><div class="stat-label">SHADOW</div><input type="number" id="stat-shadow" class="stat-input" onchange="updatePC('shadow', this.value)"></div>
-                <div class="stat-box"><div class="stat-label">WITS</div><input type="number" id="stat-wits" class="stat-input" onchange="updatePC('wits', this.value)"></div>
+                <div class="stat-box" onclick="actionRoll('edge')"><div class="stat-label">EDGE</div><input type="number" id="stat-edge" class="stat-input" onclick="event.stopPropagation()" onchange="updatePC('edge', this.value)"></div>
+                <div class="stat-box" onclick="actionRoll('heart')"><div class="stat-label">HEART</div><input type="number" id="stat-heart" class="stat-input" onclick="event.stopPropagation()" onchange="updatePC('heart', this.value)"></div>
+                <div class="stat-box" onclick="actionRoll('iron')"><div class="stat-label">IRON</div><input type="number" id="stat-iron" class="stat-input" onclick="event.stopPropagation()" onchange="updatePC('iron', this.value)"></div>
+                <div class="stat-box" onclick="actionRoll('shadow')"><div class="stat-label">SHADOW</div><input type="number" id="stat-shadow" class="stat-input" onclick="event.stopPropagation()" onchange="updatePC('shadow', this.value)"></div>
+                <div class="stat-box" onclick="actionRoll('wits')"><div class="stat-label">WITS</div><input type="number" id="stat-wits" class="stat-input" onclick="event.stopPropagation()" onchange="updatePC('wits', this.value)"></div>
             </div>
         </section>
 
         <section>
-            <div class="section-header">Status & Vitals</div>
             <div class="vitals-grid">
                 <div class="vital-item">
                     <div class="vital-info"><span class="vital-name">Health</span><span id="health-val" class="vital-val">5</span></div>
@@ -83,23 +78,22 @@
                     <div class="vital-btns"><button onclick="changeVital('supply', -1)">-</button><button onclick="changeVital('supply', 1)">+</button></div>
                 </div>
                 <div class="vital-item">
-                    <div class="vital-info"><span class="vital-name">Experience</span><span id="xp-val" class="vital-val">0</span></div>
+                    <div class="vital-info"><span class="vital-name">XP</span><span id="xp-val" class="vital-val">0</span></div>
                     <div class="vital-btns"><button onclick="changeVital('xp', -1)">-</button><button onclick="changeVital('xp', 1)">+</button></div>
                 </div>
                 
                 <div class="momentum-card">
                     <div class="vital-info">
                         <span class="vital-name">Momentum</span>
-                        <span id="momentum-val" class="vital-val" style="color:var(--accent);">+2</span>
-                        <span id="m-caps" style="font-size:0.5rem; opacity:0.5;">MAX +10 / RESET +2</span>
+                        <span id="momentum-val" class="vital-val">+2</span>
+                        <span id="m-caps" style="font-size:0.45rem; opacity:0.5;">MAX +10 / RESET +2</span>
                     </div>
-                    <button id="burn-btn" class="burn-btn" onclick="burnMomentum()">Burn Momentum</button>
+                    <button id="burn-btn" class="burn-btn" onclick="burnMomentum()">Burn</button>
                 </div>
             </div>
         </section>
 
         <section>
-            <div class="section-header">Impacts</div>
             <div class="impacts-flex">
                 <div class="pill" id="p-wounded" onclick="toggleImpact('wounded')">Wounded</div>
                 <div class="pill" id="p-shaken" onclick="toggleImpact('shaken')">Shaken</div>
@@ -109,83 +103,56 @@
         </section>
 
         <section>
-            <div class="section-header">Progress Tracks & Crisis Clocks</div>
+            <div class="section-header">Clocks & Tracks</div>
             <div id="track-list"></div>
-            <button class="add-btn" onclick="addTrackPrompt()">+ Add Track or Clock</button>
+            <button class="add-btn" onclick="addTrackPrompt()">+ NEW OBJECTIVE / CLOCK</button>
         </section>
     </div>
 
     <script src="../../js/sync.js"></script>
     <script>
-        const game = new URLSearchParams(window.location.search).get('game') || 'starforged';
-        let pc = {
-            edge:2, heart:2, iron:2, shadow:2, wits:2,
-            health:5, spirit:5, supply:5, momentum:2, xp:0,
-            impacts: [], tracks: []
-        };
+        let pc = { edge:2, heart:2, iron:2, shadow:2, wits:2, health:5, spirit:5, supply:5, momentum:2, xp:0, impacts: [], tracks: [] };
 
         async function init() {
-            document.body.classList.add(`theme-${game}`);
-            startHeartbeat(refreshSheet, 35000);
-            document.getElementById('loader').style.display = 'none';
-            document.getElementById('sheet-ui').style.display = 'flex';
+            startHeartbeat(refreshSheet, 5000); // Faster sync for sheet
+            refreshSheet();
         }
 
         async function refreshSheet() {
             const data = await loadStats(charId);
             if (!data) return;
-
-            // Attributes (Edge, Heart, etc.)
-            ['edge','heart','iron','shadow','wits'].forEach(s => {
-                if (data[s] !== undefined) pc[s] = parseInt(data[s]);
+            ['edge','heart','iron','shadow','wits','health','spirit','supply','momentum','xp'].forEach(k => {
+                if(data[k] !== undefined) pc[k] = parseInt(data[k]);
             });
-
-           // Vitals
-           ['health','spirit','supply','momentum','xp'].forEach(v => {
-               if (data[v] !== undefined) pc[v] = parseInt(data[v]);
-           });
-
-          // JSON Arrays (Impacts and Tracks)
-          if (data.impacts) {
-              try { pc.impacts = JSON.parse(data.impacts); } catch(e) { pc.impacts = []; }
-          }
-          if (data.tracks) {
-              try { pc.tracks = JSON.parse(data.tracks); } catch(e) { pc.tracks = []; }
-          }
-
-          render();
+            try { pc.impacts = data.impacts ? JSON.parse(data.impacts) : []; } catch(e) { pc.impacts = []; }
+            try { pc.tracks = data.tracks ? JSON.parse(data.tracks) : []; } catch(e) { pc.tracks = []; }
+            render();
         }
-        
+
         function render() {
-            // Attributes
             ['edge','heart','iron','shadow','wits'].forEach(s => document.getElementById(`stat-${s}`).value = pc[s]);
-            // Vitals
             ['health','spirit','supply','xp'].forEach(v => document.getElementById(`${v}-val`).innerText = pc[v]);
             
-            // Momentum Logic
             const impactCount = pc.impacts.length;
             const maxM = 10 - impactCount;
             const resetM = impactCount >= 2 ? 0 : (impactCount === 1 ? 1 : 2);
             document.getElementById('momentum-val').innerText = (pc.momentum > 0 ? "+" : "") + pc.momentum;
             document.getElementById('m-caps').innerText = `MAX +${maxM} / RESET +${resetM}`;
-            document.getElementById('burn-btn').disabled = pc.momentum <= 0;
+            document.getElementById('burn-btn').disabled = pc.momentum <= 2; // Can't burn at reset or lower
 
-            // Impacts
             ['wounded','shaken','unprepared','encumbered'].forEach(i => {
                 document.getElementById(`p-${i}`).className = pc.impacts.includes(i) ? 'pill active' : 'pill';
             });
 
-            // Tracks
             const tList = document.getElementById('track-list');
             tList.innerHTML = '';
             pc.tracks.forEach((t, idx) => {
                 const card = document.createElement('div');
                 card.className = 'track-card';
-                let content = `<div class="track-header"><span class="stat-label" style="color:var(--accent)">${t.title}</span><button class="del-link" onclick="deleteTrack(${idx})">Delete</button></div>`;
-                
+                let content = `<div class="track-header"><span class="stat-label" style="color:var(--accent)">${t.title}</span><button class="del-link" onclick="deleteTrack(${idx})">×</button></div>`;
                 if(t.type === 'clock') {
                     content += `<div class="clock-grid">`;
-                    for(let i=1; i<=t.max; i++) content += `<div class="clock-seg ${i <= t.val ? 'active' : ''}" onclick="updateTrack(${idx},${i})"></div>`;
+                    for(let i=1; i<=6; i++) content += `<div class="clock-seg ${i <= t.val ? 'active' : ''}" onclick="updateTrack(${idx},${i})"></div>`;
                     content += `</div>`;
                 } else {
                     content += `<div class="progress-bar">`;
@@ -197,14 +164,11 @@
             });
         }
 
-        async function updatePC(key, val) { 
-            pc[key] = parseInt(val); 
-            await saveStat(charId, key, pc[key]); 
-        }
+        async function updatePC(key, val) { pc[key] = parseInt(val); await saveStat(charId, key, pc[key]); }
 
         async function changeVital(key, amt) {
-            pc[key] += amt;
-            if(key !== 'xp' && key !== 'momentum') pc[key] = Math.max(0, Math.min(5, pc[key]));
+            pc[key] = Math.max(0, pc[key] + amt);
+            if(['health','spirit','supply'].includes(key)) pc[key] = Math.min(5, pc[key]);
             await saveStat(charId, key, pc[key]);
             render();
         }
@@ -212,39 +176,52 @@
         async function burnMomentum() {
             const impactCount = pc.impacts.length;
             const resetM = impactCount >= 2 ? 0 : (impactCount === 1 ? 1 : 2);
-            await saveStat(charId, "history_entry", `Burned Momentum (was ${pc.momentum})`);
+            await saveStat(charId, "history_entry", `🔥 MOMENTUM BURN: ${pc.momentum} -> ${resetM}`);
             pc.momentum = resetM;
             await saveStat(charId, "momentum", pc.momentum);
             render();
         }
 
         async function toggleImpact(name) {
-            if(pc.impacts.includes(name)) pc.impacts = pc.impacts.filter(i => i !== name);
-            else pc.impacts.push(name);
+            pc.impacts = pc.impacts.includes(name) ? pc.impacts.filter(i => i !== name) : [...pc.impacts, name];
             await saveStat(charId, "impacts", JSON.stringify(pc.impacts));
             render();
         }
 
-        async function addTrackPrompt() {
-            const name = prompt("Track Name?") || "New Track";
-            const type = confirm("OK for Progress Track, Cancel for 6-Segment Clock") ? "progress" : "clock";
-            pc.tracks.push({ title: name, type: type, val: 0, max: 6 });
-            await saveStat(charId, "tracks", JSON.stringify(pc.tracks));
+        function addTrackPrompt() {
+            const name = prompt("Name of Objective/Clock?");
+            if(!name) return;
+            const isClock = confirm("Create a 6-Segment CRISIS CLOCK?\n(Cancel for 10-Box Progress Track)");
+            pc.tracks.push({ title: name.toUpperCase(), type: isClock ? 'clock' : 'progress', val: 0 });
+            saveStat(charId, "tracks", JSON.stringify(pc.tracks));
             render();
         }
 
-        async function updateTrack(idx, val) {
+        function updateTrack(idx, val) {
             pc.tracks[idx].val = (pc.tracks[idx].val === val) ? val - 1 : val;
-            await saveStat(charId, "tracks", JSON.stringify(pc.tracks));
+            saveStat(charId, "tracks", JSON.stringify(pc.tracks));
             render();
         }
 
-        async function deleteTrack(idx) {
-            if(confirm("Delete track?")) {
-                pc.tracks.splice(idx, 1);
-                await saveStat(charId, "tracks", JSON.stringify(pc.tracks));
-                render();
-            }
+        function deleteTrack(idx) { if(confirm("Terminate this track?")) { pc.tracks.splice(idx, 1); saveStat(charId, "tracks", JSON.stringify(pc.tracks)); render(); } }
+
+        /* --- INTEGRATED STARFORGED ROLLER --- */
+        async function actionRoll(statName) {
+            const statVal = pc[statName];
+            const d6 = Math.floor(Math.random() * 6) + 1;
+            const c1 = Math.floor(Math.random() * 10) + 1;
+            const c2 = Math.floor(Math.random() * 10) + 1;
+            const total = Math.min(10, d6 + statVal);
+            
+            let result = "MISS";
+            if (total > c1 && total > c2) result = "STRONG HIT";
+            else if (total > c1 || total > c2) result = "WEAK HIT";
+            
+            if (c1 === c2) result += " (MATCH!)";
+
+            const log = `ROLL [${statName.toUpperCase()}]: ${d6}+${statVal}=${total} vs (${c1}, ${c2}) -> ${result}`;
+            await saveStat(charId, "history_entry", log);
+            alert(log);
         }
 
         init();
