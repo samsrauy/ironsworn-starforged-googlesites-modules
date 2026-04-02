@@ -5,15 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../../css/style.css">
     <style>
-        /* CSS remains exactly as you designed - it's excellent */
         body { background: #050508; color: #e0e0e0; font-family: 'Courier New', monospace; padding: 10px; }
         .sheet-grid { display: flex; flex-direction: column; gap: 12px; max-width: 600px; margin: auto; }
         .section-header { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 2px; opacity: 0.5; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px; color: var(--accent); }
+        
+        /* Attributes */
         .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; text-align: center; }
         .stat-box { border: 1px solid #333; border-radius: 4px; padding: 5px; background: rgba(255,255,255,0.03); cursor: pointer; transition: 0.2s; }
         .stat-box:hover { border-color: var(--accent); background: rgba(0, 255, 153, 0.05); }
         .stat-label { font-size: 0.5rem; opacity: 0.7; font-weight: bold; pointer-events: none; }
         .stat-input { background: none; border: none; color: var(--accent); font-size: 1.1rem; font-weight: bold; width: 100%; text-align: center; font-family: 'Courier New', monospace; outline: none; }
+
+        /* Vitals */
         .vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .vital-item { border: 1px solid #333; padding: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; background: #000; }
         .vital-info { display: flex; flex-direction: column; }
@@ -21,23 +24,37 @@
         .vital-val { font-size: 1.3rem; font-weight: bold; color: var(--accent); }
         .vital-btns button { width: 24px; height: 24px; cursor: pointer; background: #111; border: 1px solid #444; color: white; border-radius: 3px; font-size: 1rem; }
         .vital-btns button:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Momentum */
         .momentum-card { grid-column: span 2; border: 1px solid var(--accent); padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,255,153, 0.05); }
         .burn-btn { background: #f87171; color: black; border: none; padding: 6px 12px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 0.65rem; text-transform: uppercase; }
         .burn-btn:disabled { opacity: 0.2; cursor: not-allowed; filter: grayscale(1); }
+
+        /* Tracks */
         .track-card { border: 1px solid #333; background: #0a0a0c; padding: 10px; border-radius: 6px; margin-bottom: 8px; }
         .track-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .progress-bar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
         .box { height: 18px; border: 1px solid #444; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; border-radius: 2px; }
         .box.filled { background: var(--accent); color: black; font-weight: bold; border-color: var(--accent); }
+        
         .clock-grid { display: flex; gap: 8px; justify-content: center; padding: 5px 0; }
         .clock-seg { width: 26px; height: 26px; border: 2px solid #f87171; border-radius: 50%; cursor: pointer; }
         .clock-seg.active { background: #f87171; box-shadow: 0 0 10px rgba(248, 113, 113, 0.4); }
+
         .impacts-flex { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
         .pill { padding: 4px 10px; border: 1px solid #444; border-radius: 15px; font-size: 0.6rem; cursor: pointer; opacity: 0.4; transition: 0.3s; }
         .pill.active { opacity: 1; background: rgba(248, 113, 113, 0.2); border-color: #f87171; color: #f87171; }
+
         .add-btn { width: 100%; padding: 8px; border: 1px dashed #444; background: none; color: #888; cursor: pointer; font-size: 0.65rem; border-radius: 4px; }
         .del-link { font-size: 0.8rem; color: #f87171; background: none; border: none; cursor: pointer; opacity: 0.5; }
-        #roll-result-area { position: fixed; bottom: 10px; right: 10px; left: 10px; background: #000; border: 1px solid var(--accent); padding: 10px; border-radius: 4px; display: none; z-index: 100; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+
+        /* Roll Overlay */
+        #roll-result-area { 
+            position: fixed; bottom: 10px; right: 10px; left: 10px; 
+            background: #000; border: 1px solid var(--accent); 
+            padding: 10px; border-radius: 4px; display: none; 
+            z-index: 100; box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
     </style>
 </head>
 <body>
@@ -111,12 +128,13 @@
         let pc = { edge:2, heart:2, iron:2, shadow:2, wits:2, health:5, spirit:5, supply:5, momentum:2, xp:0, impacts: [], tracks: [] };
 
         async function init() {
-            // WAIT FOR AUTO-DISCOVERY
+            // Neural Link Handshake: Wait for sync.js to discover GAS_URL
             if (!GAS_URL) {
-                console.log("Waiting for Neural Link...");
-                setTimeout(init, 1000);
+                console.log("Neural Link: Initializing handshake...");
+                setTimeout(init, 1000); 
                 return;
             }
+
             startHeartbeat(refreshSheet, 15000); 
             await refreshSheet();
         }
