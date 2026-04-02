@@ -117,7 +117,9 @@
                     let styledText = entry.text
                         .replace(/Strong Hit/g, '<span class="strong-hit">Strong Hit</span>')
                         .replace(/Weak Hit/g, '<span class="weak-hit">Weak Hit</span>')
-                        .replace(/Miss/g, '<span class="miss">Miss</span>');
+                        .replace(/Miss/g, '<span class="miss">Miss</span>')
+                        .replace(/VOID ORACLE/g, '<span style="color: #a855f7; font-weight: bold;">VOID ORACLE</span>')
+                        .replace(/NPC DISCOVERED/g, '<span style="color: var(--accent); font-weight: bold;">NPC DISCOVERED</span>');
 
                     div.innerHTML = `<span class="log-time">${entry.time}</span> <span class="log-text">${styledText}</span>`;
                     container.appendChild(div);
