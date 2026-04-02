@@ -4,77 +4,80 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../../css/style.css">
-    <title>Starforged Nav-Computer Pro + Fleet Tracking</title>
+    <title>Starforged Nav-Computer Pro</title>
     <style>
         body { overflow: hidden; margin: 0; background: #050508; font-family: 'Courier New', monospace; color: white; }
-        #map-canvas { display: block; cursor: crosshair; }
+        #map-canvas { display: block; cursor: crosshair; touch-action: none; }
         
         .map-overlay { position: absolute; top: 15px; left: 15px; pointer-events: none; z-index: 10; }
-        .region-badge { background: var(--accent); color: black; padding: 4px 12px; font-weight: bold; font-size: 0.8rem; text-transform: uppercase; border-radius: 3px; box-shadow: 0 0 15px rgba(var(--accent-rgb), 0.4); }
+        .region-badge { background: var(--accent); color: black; padding: 4px 12px; font-weight: bold; font-size: 0.8rem; text-transform: uppercase; border-radius: 3px; box-shadow: 0 0 15px rgba(0, 255, 153, 0.3); }
         .coords { color: rgba(255,255,255,0.4); font-size: 0.6rem; margin-top: 10px; letter-spacing: 1px; }
 
         .map-controls { 
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
-            display: flex; gap: 12px; z-index: 10; background: rgba(10,10,15,0.9); 
-            padding: 12px 20px; border: 1px solid var(--border); border-radius: 8px;
-            backdrop-filter: blur(8px); align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex; gap: 12px; z-index: 10; background: rgba(10,10,15,0.95); 
+            padding: 12px 20px; border: 1px solid #333; border-radius: 8px;
+            backdrop-filter: blur(10px); align-items: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
         }
         
-        select, button { background: #111; color: white; border: 1px solid var(--border); padding: 6px 14px; font-size: 0.7rem; cursor: pointer; border-radius: 4px; }
+        select, button { background: #111; color: white; border: 1px solid #444; padding: 6px 14px; font-size: 0.7rem; cursor: pointer; border-radius: 4px; transition: 0.2s; }
         button:hover { background: var(--accent); color: black; border-color: var(--accent); }
         .btn-archive { border-color: #4ade80; color: #4ade80; }
+        .btn-syncing { animation: pulse 1s infinite; opacity: 0.5; }
 
-        .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; }
-        .modal-content { width: 90%; max-width: 450px; background: #0a0a0a; border: 1px solid var(--border); padding: 25px; border-radius: 12px; }
-        .archive-list { max-height: 250px; overflow-y: auto; margin: 15px 0; border: 1px solid rgba(255,255,255,0.05); }
-        .archive-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.75rem; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
-        .legend { position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.7); padding: 12px; border: 1px solid var(--border); font-size: 0.6rem; pointer-events: none; }
-        .ship-hint { position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%); font-size: 0.6rem; color: var(--accent); opacity: 0.6; pointer-events: none; }
+        .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        .modal-content { width: 90%; max-width: 450px; background: #0a0a0a; border: 1px solid var(--accent); padding: 25px; border-radius: 12px; }
+        .archive-list { max-height: 250px; overflow-y: auto; margin: 15px 0; border: 1px solid #222; background: #050505; }
+        .archive-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #111; font-size: 0.75rem; }
+
+        .legend { position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.8); padding: 12px; border: 1px solid #333; font-size: 0.6rem; pointer-events: none; border-radius: 4px; }
+        .ship-hint { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); font-size: 0.6rem; color: var(--accent); opacity: 0.6; pointer-events: none; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body>
 
     <div class="map-overlay">
-        <div id="region-display" class="region-badge">NAV-SYNC ACTIVE</div>
+        <div id="region-display" class="region-badge">NAV-COMPUTER STANDBY</div>
         <div id="mouse-coords" class="coords">X: 0 Y: 0</div>
     </div>
 
     <div class="legend">
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;"><div style="width:10px; height:10px; background:#facc15;"></div> Settlement</div>
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;"><div style="width:10px; height:10px; background:#5dade2; border-radius:50%;"></div> Waypoint</div>
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;"><div style="width:0; height:0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid #ff4e50;"></div> Your Ship</div>
-        <div style="display:flex; align-items:center; gap:8px;"><div style="width:12px; height:2px; background:#4ade80;"></div> Known Passage</div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;"><div style="width:10px; height:10px; background:#facc15;"></div> Settlement</div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;"><div style="width:10px; height:10px; background:#5dade2; border-radius:50%;"></div> Waypoint</div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;"><div style="width:0; height:0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid #ff4e50;"></div> Fleet-01</div>
+        <div style="display:flex; align-items:center; gap:8px;"><div style="width:12px; height:2px; background:#4ade80;"></div> Passage</div>
     </div>
 
-    <div class="ship-hint">Click and Drag Ship to Reposition</div>
+    <div class="ship-hint">Manual Override: Click/Drag Ship to Jump</div>
 
     <canvas id="map-canvas"></canvas>
 
     <div class="map-controls">
         <div style="display:flex; flex-direction:column; gap:4px;">
             <select id="region-select">
-                <option value="terminus">Terminus (3 Passages)</option>
-                <option value="outlands" selected>Outlands (2 Passages)</option>
-                <option value="expanse">Expanse (1 Passage)</option>
+                <option value="terminus">Terminus</option>
+                <option value="outlands" selected>Outlands</option>
+                <option value="expanse">Expanse</option>
             </select>
-            <button onclick="generateSector()">New Scan</button>
+            <button onclick="generateSector()">Deep Scan</button>
         </div>
-        <div style="width: 1px; height: 40px; background: rgba(255,255,255,0.1); margin: 0 5px;"></div>
+        <div style="width: 1px; height: 40px; background: #333; margin: 0 5px;"></div>
         <div style="display:flex; flex-direction:column; gap:4px;">
-            <select id="vault-select" onchange="loadFromArchive(this.value)"><option value="">-- Archive Drive --</option></select>
-            <button class="btn-archive" onclick="saveToArchive()">Save to Archive</button>
+            <select id="vault-select" onchange="loadFromArchive(this.value)"><option value="">-- Vault Drive --</option></select>
+            <button class="btn-archive" onclick="saveToArchive()">Archive Current</button>
         </div>
-        <button onclick="toggleManager(true)">⚙️</button>
-        <button onclick="syncMap()">🔄</button>
+        <button onclick="toggleManager(true)">MNG</button>
+        <button id="sync-btn" onclick="syncMap()">SYNC</button>
     </div>
 
     <div id="manager-modal" class="modal-overlay">
         <div class="modal-content">
-            <h2 style="color:var(--accent); font-size:1rem; margin-top:0;">NAV-DATA MANAGER</h2>
+            <h2 style="color:var(--accent); font-size:0.9rem; margin-top:0; letter-spacing:2px;">DATA VAULT MANAGER</h2>
             <div id="archive-list" class="archive-list"></div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
-                <button onclick="exportData()">Export JSON</button>
+                <button onclick="exportData()">Export Data</button>
                 <button onclick="toggleManager(false)" style="border-color:white;">Close</button>
             </div>
         </div>
@@ -85,13 +88,13 @@
         const canvas = document.getElementById('map-canvas');
         const ctx = canvas.getContext('2d');
         let sectorData = { region: 'outlands', stars: [], paths: [], archiveName: 'Initial Scan' };
-        let shipPos = { x: 100, y: 100 };
+        let shipPos = { x: 200, y: 200 };
         let isDraggingShip = false;
 
         const REGION_RULES = {
             'terminus': { passages: 3, settlements: 5, waypoints: 10 },
-            'outlands': { passages: 2, settlements: 3, waypoints: 8 },
-            'expanse':  { passages: 1, settlements: 2, waypoints: 6 }
+            'outlands': { passages: 2, settlements: 3, waypoints: 7 },
+            'expanse':  { passages: 1, settlements: 1, waypoints: 5 }
         };
 
         async function init() {
@@ -101,7 +104,8 @@
             window.addEventListener('mouseup', stopDrag);
             
             resize();
-            startHeartbeat(syncMap, 40000);
+            await syncMap();
+            startHeartbeat(syncMap, 45000); // Slower heartbeat for map to save bandwidth
         }
 
         function resize() {
@@ -111,14 +115,24 @@
         }
 
         async function syncMap() {
+            const btn = document.getElementById('sync-btn');
+            btn.classList.add('btn-syncing');
+            
             const data = await loadStats(charId);
+            if (!data) { btn.classList.remove('btn-syncing'); return; }
+
             if (data.sector_vault) updateVaultUI(JSON.parse(data.sector_vault));
             if (data.ship_pos) shipPos = JSON.parse(data.ship_pos);
+            
             if (data.map_state) {
                 sectorData = JSON.parse(data.map_state);
                 document.getElementById('region-display').innerText = sectorData.archiveName || sectorData.region;
-                draw();
-            } else { generateSector(); }
+            } else { 
+                await generateSector(); 
+            }
+            
+            draw();
+            setTimeout(() => btn.classList.remove('btn-syncing'), 1000);
         }
 
         async function generateSector() {
@@ -132,16 +146,19 @@
                 stars.push({
                     id: i,
                     name: isSettle ? "SETTLEMENT-" + (i+1) : "WAYPOINT-" + i,
-                    x: Math.random() * (canvas.width - 250) + 125,
-                    y: Math.random() * (canvas.height - 250) + 125,
+                    x: Math.random() * (canvas.width - 200) + 100,
+                    y: Math.random() * (canvas.height - 200) + 100,
                     type: isSettle ? 'settlement' : 'waypoint'
                 });
             }
 
             const settles = stars.filter(s => s.type === 'settlement');
             for (let i = 0; i < rules.passages; i++) {
-                if (i < settles.length - 1) paths.push({ from: settles[i].id, to: settles[i+1].id });
-                else if (settles.length > 0) paths.push({ from: settles[0].id, to: 'edge', ex: Math.random() > 0.5 ? 0 : canvas.width, ey: Math.random() * canvas.height });
+                if (settles[i] && settles[i+1]) {
+                    paths.push({ from: settles[i].id, to: settles[i+1].id });
+                } else if (settles[0]) {
+                    paths.push({ from: settles[0].id, to: 'edge', ex: Math.random() > 0.5 ? 0 : canvas.width, ey: Math.random() * canvas.height });
+                }
             }
 
             sectorData = { region, stars, paths, archiveName: "SCAN-" + Math.floor(Math.random()*999) };
@@ -150,8 +167,8 @@
         }
 
         function startDrag(e) {
-            const d = Math.sqrt((e.offsetX - shipPos.x)**2 + (e.offsetY - shipPos.y)**2);
-            if (d < 20) {
+            const dist = Math.sqrt((e.offsetX - shipPos.x)**2 + (e.offsetY - shipPos.y)**2);
+            if (dist < 30) { // Increased hit area for easier dragging
                 isDraggingShip = true;
                 canvas.style.cursor = 'grabbing';
             }
@@ -177,13 +194,15 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Grid
-            ctx.strokeStyle = "rgba(255,255,255,0.03)";
+            // Grid Lines
+            ctx.strokeStyle = "rgba(0, 255, 153, 0.05)";
+            ctx.lineWidth = 1;
             for(let i=0; i<canvas.width; i+=100) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
             for(let i=0; i<canvas.height; i+=100) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
 
-            // Paths
+            // Draw Known Passages
             ctx.lineWidth = 2; ctx.strokeStyle = "#4ade80";
+            ctx.setLineDash([5, 5]); // Dashed lines for passages
             sectorData.paths.forEach(p => {
                 const s1 = sectorData.stars.find(s => s.id === p.from);
                 if (!s1) return;
@@ -192,35 +211,42 @@
                 else { const s2 = sectorData.stars.find(s => s.id === p.to); if(s2) ctx.lineTo(s2.x, s2.y); }
                 ctx.stroke();
             });
+            ctx.setLineDash([]);
 
-            // Stars
+            // Draw Stars/Waypoints
             sectorData.stars.forEach(s => {
                 const isSettle = s.type === 'settlement';
                 ctx.shadowBlur = 15; ctx.shadowColor = isSettle ? "#facc15" : "#5dade2";
                 ctx.fillStyle = isSettle ? "#facc15" : "#5dade2";
-                if (isSettle) ctx.fillRect(s.x-6, s.y-6, 12, 12);
-                else { ctx.beginPath(); ctx.arc(s.x, s.y, 5, 0, Math.PI*2); ctx.fill(); }
-                ctx.shadowBlur = 0; ctx.fillStyle = "rgba(255,255,255,0.8)";
-                ctx.font = "bold 9px 'Courier New'"; ctx.fillText(s.name, s.x+15, s.y+4);
+                
+                if (isSettle) {
+                    ctx.fillRect(s.x-7, s.y-7, 14, 14);
+                } else {
+                    ctx.beginPath(); ctx.arc(s.x, s.y, 6, 0, Math.PI*2); ctx.fill();
+                }
+                
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = "rgba(255,255,255,0.7)";
+                ctx.font = "8px 'Courier New'";
+                ctx.fillText(s.name, s.x+15, s.y+4);
             });
 
-            // SHIP TOKEN
-            ctx.shadowBlur = 20; ctx.shadowColor = "#ff4e50";
+            // Draw Ship
+            ctx.shadowBlur = 25; ctx.shadowColor = "#ff4e50";
             ctx.fillStyle = "#ff4e50";
             ctx.beginPath();
-            ctx.moveTo(shipPos.x, shipPos.y - 12);
-            ctx.lineTo(shipPos.x - 8, shipPos.y + 8);
-            ctx.lineTo(shipPos.x + 8, shipPos.y + 8);
+            ctx.moveTo(shipPos.x, shipPos.y - 15);
+            ctx.lineTo(shipPos.x - 10, shipPos.y + 10);
+            ctx.lineTo(shipPos.x + 10, shipPos.y + 10);
             ctx.closePath();
             ctx.fill();
             ctx.shadowBlur = 0;
-            ctx.font = "bold 10px 'Courier New'";
-            ctx.fillText("FLEET-01", shipPos.x - 22, shipPos.y + 22);
+            ctx.font = "bold 9px 'Courier New'";
+            ctx.fillText("FLEET-01", shipPos.x - 20, shipPos.y + 25);
         }
 
-        // ... [Existing Manager/Archive functions from previous response] ...
         async function saveToArchive() {
-            const name = prompt("Name record:", sectorData.archiveName);
+            const name = prompt("Name this sector record:", sectorData.archiveName);
             if (!name) return;
             sectorData.archiveName = name;
             const data = await loadStats(charId);
@@ -231,20 +257,31 @@
             await saveStat(charId, "map_state", JSON.stringify(sectorData));
             syncMap();
         }
+
         async function loadFromArchive(name) {
             if (!name) return;
             const data = await loadStats(charId);
             const vault = JSON.parse(data.sector_vault || "[]");
             const target = vault.find(s => s.archiveName === name);
-            if (target) { sectorData = target; await saveStat(charId, "map_state", JSON.stringify(sectorData)); draw(); }
+            if (target) { 
+                sectorData = target; 
+                await saveStat(charId, "map_state", JSON.stringify(sectorData)); 
+                draw(); 
+            }
         }
+
         function updateVaultUI(vault) {
             const select = document.getElementById('vault-select');
             const cur = select.value;
-            select.innerHTML = '<option value="">-- Archive Drive --</option>';
-            vault.forEach(s => { let opt = document.createElement('option'); opt.value = opt.innerText = s.archiveName; select.appendChild(opt); });
+            select.innerHTML = '<option value="">-- Vault Drive --</option>';
+            vault.forEach(s => { 
+                let opt = document.createElement('option'); 
+                opt.value = opt.innerText = s.archiveName; 
+                select.appendChild(opt); 
+            });
             select.value = cur;
         }
+
         async function toggleManager(show) {
             const m = document.getElementById('manager-modal');
             m.style.display = show ? 'flex' : 'none';
@@ -252,29 +289,33 @@
                 const data = await loadStats(charId);
                 const vault = JSON.parse(data.sector_vault || "[]");
                 const list = document.getElementById('archive-list');
-                list.innerHTML = vault.map((s, i) => `<div class="archive-item"><span>${s.archiveName}</span><div style="display:flex; gap:5px;"><button onclick="renameArchive(${i})">Rename</button><button class="btn-danger" onclick="deleteArchive(${i})">Purge</button></div></div>`).join('') || '<div style="padding:10px; opacity:0.5;">No Data.</div>';
+                list.innerHTML = vault.map((s, i) => `
+                    <div class="archive-item">
+                        <span>${s.archiveName}</span>
+                        <div style="display:flex; gap:5px;">
+                            <button class="btn-danger" onclick="deleteArchive(${i})">WIPE</button>
+                        </div>
+                    </div>
+                `).join('') || '<div style="padding:20px; opacity:0.3; text-align:center;">EMPTY</div>';
             }
         }
-        async function renameArchive(idx) {
-            const data = await loadStats(charId);
-            let vault = JSON.parse(data.sector_vault || "[]");
-            const n = prompt("New name?", vault[idx].archiveName);
-            if (n) { vault[idx].archiveName = n; await saveStat(charId, "sector_vault", JSON.stringify(vault)); toggleManager(true); updateVaultUI(vault); }
-        }
+
         async function deleteArchive(idx) {
-            if (!confirm("Delete?")) return;
+            if (!confirm("Wipe this coordinate data?")) return;
             const data = await loadStats(charId);
             let vault = JSON.parse(data.sector_vault || "[]");
             vault.splice(idx, 1);
             await saveStat(charId, "sector_vault", JSON.stringify(vault));
-            toggleManager(true); updateVaultUI(vault);
+            toggleManager(true);
+            updateVaultUI(vault);
         }
+
         async function exportData() {
             const data = await loadStats(charId);
             const blob = new Blob([data.sector_vault], {type: "application/json"});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = "nav_backup.json"; a.click();
+            a.href = url; a.download = "sector_vault_backup.json"; a.click();
         }
 
         init();
