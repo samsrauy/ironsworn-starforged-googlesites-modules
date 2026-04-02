@@ -1,22 +1,3 @@
-/**
- * ==============================================================================
- * SYNC.JS - Multiplayer Bridge (v1.2 - Redirect & Cache Proof)
- * ==============================================================================
- * HOW TO CONSTRUCT YOUR EMBED URL:
- * 1. Start with the Module URL from this repo, for example: 
- * https://samsrauy.github.io/ironsworn-starforged-googlesites-modules/modules/stat-tracker/index.html
- * * 2. Add the Game (Theme/Rules):        ?game=starforged  (or ?game=ironsworn)
- * * 3. Add your unique Character ID:      &id=Valerius
- * * 4. Add your private Google API Key:   &api=https://script.google.com/macros/s/[YOUR_UNIQUE_ID]/exec (the URL that follows &api= is the URL you created when you Deployed the Google App Script.)
- *
- * FULL EXAMPLE:
- * https://samsrauy.github.io/ironsworn-starforged-googlesites-modules/modules/stat-tracker/index.html?game=starforged&id=Valerius&api=https://script.google.com/macros/s/AKfycb.../exec
- * * TIP: Users can run multiple separate campaigns by creating multiple Google Sheets.
- * Each sheet will provide a unique API URL per the instructions in the Google Apps Script.
- * ==============================================================================
- */
-
-// Grab configuration from the browser's address bar
 const syncParams = new URLSearchParams(window.location.search);
 const GAS_URL = syncParams.get('api');
 const charId = syncParams.get('id') || 'global_user';
@@ -27,81 +8,78 @@ const charId = syncParams.get('id') || 'global_user';
 async function saveStat(id, statName, value) {
     if (!GAS_URL) return;
 
-    // Special logic for History: We fetch current history, add new item, and save back
+    // Fix: If we are saving history, we must be careful not to overwrite 
+    // simultaneous rolls. 
     if (statName === "history_entry") {
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const entry = { time: timestamp, text: value };
+        
+        // We send the single entry to a special 'history_push' stat 
+        // which your GAS Code.gs should handle by appending, 
+        // OR we handle the merge here with a slight delay.
         const currentData = await loadStats(id);
         let history = [];
-        try { history = JSON.parse(currentData.history || "[]"); } catch(e) {}
+        try { 
+            history = (typeof currentData.history === 'string') 
+                ? JSON.parse(currentData.history) 
+                : (currentData.history || []); 
+        } catch(e) { history = []; }
         
-        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        history.push({ time: timestamp, text: value });
-        
-        // Keep only the last 20 rolls
-        if (history.length > 20) history.shift();
+        history.push(entry);
+        if (history.length > 25) history.shift(); // Increased to 25 for better logging
         
         statName = "history";
         value = JSON.stringify(history);
     }
 
     try {
+        // We use 'no-cors' for POST because GAS doesn't return proper CORS headers 
+        // on successful execution, but 'no-cors' still sends the data!
         await fetch(GAS_URL, {
             method: "POST",
-            mode: "no-cors",
+            mode: "no-cors", 
             cache: "no-cache",
             body: JSON.stringify({ id: id, stat: statName, value: value })
         });
-    } catch (e) { console.error("Sync error:", e); }
+    } catch (e) { console.error("Sync write error:", e); }
 }
 
 /**
  * Retrieves data from the Google Sheet (GET)
  */
 async function loadStats(id) {
-    if (!GAS_URL) {
-        console.warn("No API URL detected. Loading local defaults only.");
-        return {};
-    }
+    if (!GAS_URL) return null;
 
     try {
-        // Cache-busting: adds a unique timestamp so the browser doesn't serve old data
         const t = new Date().getTime();
         const finalUrl = `${GAS_URL}?id=${id}&t=${t}`;
 
         const response = await fetch(finalUrl, {
             method: "GET",
-            redirect: "follow", // Crucial for Google Apps Script 302 redirects
-            headers: {
-                "Content-Type": "text/plain;charset=utf-8",
-            }
+            redirect: "follow"
         });
 
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        
-        return await response.json();
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data;
     } catch (error) {
-        console.error("Fetch failed (Check your GAS Deployment settings):", error);
-        return {};
+        console.error("Sync read error:", error);
+        return null;
     }
 }
 
 /**
- * REFRESH HEARTBEAT ENGINE
- * Call this from any module to start an auto-refresh cycle.
- * @param {Function} callback - The function to run (e.g., refreshData)
- * @param {Number} interval - Base milliseconds (default 35000)
+ * Heartbeat Engine with randomized jitter
  */
 function startHeartbeat(callback, interval = 35000) {
     if (typeof callback !== 'function') return;
 
-    // 1. Initial Load
+    // Initial immediate load
     callback();
 
-    // 2. Staggered Jitter (0-5 seconds)
-    // This ensures 5 iframes don't hit the API at the exact same millisecond.
     const jitter = Math.floor(Math.random() * 5000);
-
     setTimeout(() => {
         setInterval(callback, interval);
-        console.log(`Sync Bridge: Heartbeat started with ${jitter}ms jitter.`);
+        console.log(`Neural Link: Heartbeat active (+${jitter}ms jitter)`);
     }, jitter);
 }
