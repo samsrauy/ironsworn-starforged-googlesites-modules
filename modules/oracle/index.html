@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../../css/style.css">
+    <style>
+        body { background: #050508; color: #e0e0e0; font-family: 'Courier New', monospace; padding: 15px; border: 1px solid var(--border); }
+        
+        .oracle-ui { display: flex; flex-direction: column; gap: 12px; }
+        .row { display: flex; gap: 10px; align-items: center; }
+        
+        select { 
+            flex-grow: 1; background: #111; border: 1px solid var(--border); 
+            color: white; padding: 8px; font-size: 0.75rem; cursor: pointer;
+        }
+
+        .roll-btn { 
+            background: var(--accent); color: black; border: none; 
+            padding: 8px 15px; font-weight: bold; cursor: pointer; font-size: 0.7rem;
+        }
+        .roll-btn:hover { filter: brightness(1.2); }
+
+        #oracle-result { 
+            margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.03);
+            border-radius: 4px; border-left: 3px solid var(--accent);
+            min-height: 50px; display: flex; flex-direction: column; justify-content: center;
+        }
+
+        .result-label { font-size: 0.6rem; text-transform: uppercase; opacity: 0.5; margin-bottom: 5px; }
+        .result-text { font-size: 1rem; font-weight: bold; color: var(--accent); }
+        .result-roll { font-size: 0.7rem; margin-top: 5px; opacity: 0.4; }
+
+        .sync-btn { 
+            background: none; border: 1px solid #444; color: #888; 
+            font-size: 0.6rem; padding: 4px; margin-top: 10px; cursor: pointer;
+        }
+        .sync-btn:hover { border-color: var(--accent); color: var(--accent); }
+    </style>
+</head>
+<body>
+
+    <div class="oracle-ui">
+        <div class="row">
+            <select id="table-select">
+                <optgroup label="Core">
+                    <option value="action">Action</option>
+                    <option value="theme">Theme</option>
+                </optgroup>
+                <optgroup label="Space">
+                    <option value="sightings">Space Sighting</option>
+                    <option value="sector_name">Sector Name</option>
+                </optgroup>
+                <optgroup label="Planets">
+                    <option value="planet_type">Planet Type</option>
+                    <option value="atmosphere">Atmosphere</option>
+                </optgroup>
+            </select>
+            <button class="roll-btn" onclick="rollOracle()">ROLL d100</button>
+        </div>
+
+        <div id="oracle-result">
+            <div class="result-label">Awaiting Input...</div>
+            <div class="result-text">---</div>
+        </div>
+
+        <button id="log-action" class="sync-btn" style="display:none;" onclick="logToCrew()">TRANSMIT TO CREW LOG</button>
+    </div>
+
+    <script>
+        const ORACLE_DATA = {
+            "action": [
+                { range: [1, 3], text: "Abandon" }, { range: [4, 6], text: "Acquire" }, { range: [7, 9], text: "Advance" },
+                { range: [10, 12], text: "Affect" }, { range: [98, 100], text: "Weaken" } // Snippet
+            ],
+            "theme": [
+                { range: [1, 3], text: "Ability" }, { range: [4, 6], text: "Abundance" },
+                { range: [98, 100], text: "Wrath" } // Snippet
+            ],
+            "planet_type": [
+                { range: [1, 10], text: "Desert" }, { range: [11, 20], text: "Ice" },
+                { range: [21, 35], text: "Jungle" }, { range: [95, 100], text: "Tainted" }
+            ]
+            // You can expand these arrays with the full Starforged text!
+        };
+
+        function rollOracle() {
+            const tableKey = document.getElementById('table-select').value;
+            const table = ORACLE_DATA[tableKey];
+            const roll = Math.floor(Math.random() * 100) + 1;
+            
+            let result = "Table Data Missing";
+            for (let entry of table) {
+                if (roll >= entry.range[0] && roll <= entry.range[1]) {
+                    result = entry.text;
+                    break;
+                }
+            }
+
+            document.getElementById('oracle-result').innerHTML = `
+                <div class="result-label">${tableKey.replace('_', ' ')}</div>
+                <div class="result-text">${result}</div>
+                <div class="result-roll">Rolled: ${roll}</div>
+            `;
+            document.getElementById('log-action').style.display = "block";
+        }
+    </script>
+    <script src="../../js/sync.js"></script>
+    <script>
+        async function logToCrew() {
+            const label = document.querySelector('.result-label').innerText;
+            const text = document.querySelector('.result-text').innerText;
+            const roll = document.querySelector('.result-roll').innerText;
+            await saveStat(charId, "history_entry", `ORACLE: ${label} -> ${text} (${roll})`);
+            alert("Logged to history.");
+        }
+    </script>
+</body>
+</html>
