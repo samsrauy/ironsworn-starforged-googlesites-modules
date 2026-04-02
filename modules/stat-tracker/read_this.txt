@@ -1,3 +1,0 @@
-⚠️ TEMPLATE ONLY: This module is a structural guide. To track Character Vitals (Health, Spirit, etc.), use the Character Sheet module (Coming Soon). To track custom campaign progress, copy this template and change the saveStat keys.
-
-modules/stat-tracker/index.html is just a template. You don't use this except for when someone creates a new thing.
