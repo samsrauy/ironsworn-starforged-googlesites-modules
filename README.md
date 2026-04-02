@@ -10,7 +10,6 @@ Todo: Probably change the name of the repo and all of the hard coded stuff in th
 Void-Link is a modular TTRPG interface. It decouples data (Datasworn), storage (Google Sheets), and logic (Google Apps Script) to create a persistent, platform-agnostic gaming terminal.
 <br><br>
 >This means, you just need a Google Account, a Google Sheet named whatever you want and shared per the permissions below, Google Sites (to place iframes/modules), the ability to add an App Script (under "Extensions" in Google Sheet), and an active internet connection (of course). Nothing else. No installing. No money. No problem (or potentially a few problems.)
-
 <br><br>
 **Quick note about access and permissions:**
 To ensure the Navigation Console can reach the Sector Database (Google Sheets), apply these settings:
@@ -65,6 +64,10 @@ Global config. Defines the Starforged/Ironsworn JSON source and shared range-fin
 - Auto-Discovery: If no api param is found, it fetches the Settings tab from the sheet ID to find the Web App URL.
 
 - Uplink: Provides saveStat() and loadStats().
+
+> [!NOTE]
+> ## "Yeah, yeah,yeah. Stacks, Google Sites... blah, blah, blah. Nice. Can I just play your darn game?" <br>
+> ## Um... rude. But yes. Please go here. https://samsrauy.github.io/ironsworn-starforged-googlesites-modules/index.html
 
 ## Recovery Procedure
 The key to this system is the Code.gs, which generates an API Web App URL and your character name. Because the Google Sheet will always be human readable (and editable) you have a cloudbased game save as a decentralized-ish Virtual Table Top for the Shawn Tomkin series of TTRPGs.
