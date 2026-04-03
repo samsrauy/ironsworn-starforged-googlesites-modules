@@ -9,16 +9,23 @@
         
         /* Login Screen */
         #setup-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: radial-gradient(circle, #0a0a1a 0%, #000 100%); }
-        .setup-box { background: rgba(0, 255, 153, 0.05); border: 1px solid #00ff9d; padding: 40px; border-radius: 8px; text-align: center; box-shadow: 0 0 20px rgba(0, 255, 153, 0.1); }
-        input { background: #000; border: 1px solid #00ff9d; color: #00ff9d; padding: 10px; margin: 10px 0; width: 300px; font-family: 'Share Tech Mono', monospace; outline: none; }
-        .btn-group { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
-        .boot-btn { background: #00ff9d; color: #000; border: none; padding: 12px 25px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
-        .init-btn { background: transparent; color: #00ff9d; border: 1px solid #00ff9d; padding: 12px 25px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        .setup-box { background: rgba(0, 255, 153, 0.05); border: 1px solid #00ff9d; padding: 40px; border-radius: 8px; text-align: center; box-shadow: 0 0 20px rgba(0, 255, 153, 0.1); width: 400px; }
+        
+        .input-group { margin-bottom: 20px; text-align: left; }
+        label { display: block; font-size: 0.6rem; letter-spacing: 2px; margin-bottom: 5px; opacity: 0.7; }
+        
+        input { background: #000; border: 1px solid #454d5d; color: #00ff9d; padding: 12px; width: 100%; font-family: 'Share Tech Mono', monospace; outline: none; box-sizing: border-box; transition: 0.3s; }
+        input:focus { border-color: #00ff9d; box-shadow: 0 0 10px rgba(0, 255, 153, 0.2); }
+
+        .boot-btn { width: 100%; background: #00ff9d; color: #000; border: none; padding: 15px; font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; margin-top: 10px; transition: 0.2s; }
+        .boot-btn:hover { background: #fff; transform: scale(1.02); }
+
+        .note { font-size: 0.65rem; color: #bcdee7; opacity: 0.6; line-height: 1.4; margin-top: 20px; text-align: center; font-style: italic; }
 
         /* Main Dashboard Grid */
         #dashboard { 
             display: none; 
-            grid-template-columns: 350px 1fr 350px; 
+            grid-template-columns: 380px 1fr 380px; 
             grid-template-rows: 1fr 300px; 
             height: 100vh; gap: 10px; padding: 10px; box-sizing: border-box; 
         }
@@ -28,55 +35,53 @@
         .grid-map { grid-column: 2; grid-row: 1; }
         .grid-journal { grid-column: 2; grid-row: 2; }
         .grid-assets { grid-column: 3; grid-row: 1; }
-        .grid-oracle { grid-column: 3; grid-row: 2; }
+        .grid-compendium { grid-column: 3; grid-row: 2; }
 
-        /* Menu System - BOTTOM LEFT */
+        /* Slide-out Library (Asset Browser) */
         #menu-toggle {
             position: fixed; bottom: 20px; left: 20px; z-index: 100;
             background: #00ff9d; color: #000; border: none; padding: 10px 20px;
             font-weight: bold; cursor: pointer; border-radius: 4px; box-shadow: 0 0 15px rgba(0,255,153,0.4);
-            letter-spacing: 1px; font-size: 0.8rem;
+            letter-spacing: 1px; font-size: 0.7rem; display: none;
         }
         #side-menu {
-            position: fixed; top: 0; left: -500px; width: 450px; height: 100vh;
+            position: fixed; top: 0; left: -550px; width: 500px; height: 100vh;
             background: #050508; border-right: 1px solid #00ff9d; z-index: 99;
-            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column;
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         #side-menu.open { left: 0; }
-        .menu-tabs { display: flex; background: #111; border-bottom: 1px solid #333; }
-        .menu-tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-size: 0.7rem; opacity: 0.5; color: #fff; }
-        .menu-tab.active { opacity: 1; color: #00ff9d; background: rgba(0,255,153,0.05); font-weight: bold; }
-        .menu-frame-container { flex-grow: 1; }
     </style>
 </head>
 <body>
 
     <div id="setup-screen">
         <div class="setup-box">
-            <h1 style="letter-spacing: 5px; margin-bottom: 5px;">VOID-LINK</h1>
-            <p style="font-size: 0.6rem; opacity: 0.4; margin-bottom: 30px;">NEURAL INTERFACE TERMINAL v3.3</p>
+            <h1 style="letter-spacing: 8px; margin: 0;">VOID-LINK</h1>
+            <p style="font-size: 0.6rem; opacity: 0.4; margin-bottom: 40px; letter-spacing: 1px;">NEURAL INTERFACE TERMINAL // v4.0</p>
             
-            <input type="text" id="sheet-input" placeholder="ENTER SPREADSHEET ID">
-            <br>
-            <input type="text" id="name-input" placeholder="ENTER CHARACTER NAME">
-            <br>
-            <div class="btn-group">
-                <button class="init-btn" onclick="openCreator()">Initialize Identity</button>
-                <button class="boot-btn" onclick="establishLink()">Boot Terminal</button>
+            <div class="input-group">
+                <label>DATA UPLINK (SPREADSHEET ID)</label>
+                <input type="text" id="sheet-input" placeholder="e.g. 1aBcDeFgHiJkLmNoP..." autocomplete="off">
             </div>
+
+            <div class="input-group">
+                <label>IDENTITY (CHARACTER NAME)</label>
+                <input type="text" id="name-input" placeholder="ENTER NAME..." autocomplete="off">
+            </div>
+
+            <button class="boot-btn" onclick="establishLink()">Establish Connection</button>
+            
+            <p class="note">
+                NOTE: If the character name does not exist in the system, <br>
+                a new identity will be automatically initialized upon connection.
+            </p>
         </div>
     </div>
 
-    <button id="menu-toggle" onclick="toggleMenu()" style="display:none;">☰ LIBRARY</button>
+    <button id="menu-toggle" onclick="toggleMenu()">☰ ASSET REPOSITORY</button>
 
     <div id="side-menu">
-        <div class="menu-tabs">
-            <div id="tab-comp" class="menu-tab active" onclick="switchMenu('compendium')">COMPENDIUM</div>
-            <div id="tab-brow" class="menu-tab" onclick="switchMenu('asset-browser')">ASSET BROWSER</div>
-        </div>
-        <div class="menu-frame-container">
-            <iframe id="frame-menu-content"></iframe>
-        </div>
+        <iframe id="frame-asset-browser" style="border:none;"></iframe>
     </div>
 
     <div id="dashboard">
@@ -84,7 +89,7 @@
         <div class="grid-map"><iframe id="frame-map"></iframe></div>
         <div class="grid-journal"><iframe id="frame-journal"></iframe></div>
         <div class="grid-assets"><iframe id="frame-tracker"></iframe></div>
-        <div class="grid-oracle"><iframe id="frame-oracle"></iframe></div>
+        <div class="grid-compendium"><iframe id="frame-compendium"></iframe></div>
     </div>
 
     <script>
@@ -94,56 +99,44 @@
 
         function init() {
             if (sheetId && charName) {
+                // Hide Setup, Show Dashboard
                 document.getElementById('setup-screen').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'grid';
                 document.getElementById('menu-toggle').style.display = 'block';
 
-                const query = `?sheet=${sheetId}&id=${charName}`;
+                const query = `?sheet=${sheetId}&id=${encodeURIComponent(charName)}`;
+                
+                // Load all frames
                 document.getElementById('frame-char').src = `modules/character-sheet/index.html${query}`;
                 document.getElementById('frame-map').src = `modules/map/index.html${query}`;
                 document.getElementById('frame-journal').src = `modules/journal/index.html${query}`;
                 document.getElementById('frame-tracker').src = `modules/asset-tracker/index.html${query}`;
-                document.getElementById('frame-oracle').src = `modules/secret-oracle/index.html${query}`;
+                document.getElementById('frame-compendium').src = `modules/compendium/index.html${query}`;
                 
-                switchMenu('compendium');
+                // Load the slide-out asset browser
+                document.getElementById('frame-asset-browser').src = `modules/asset-browser/index.html${query}`;
             }
         }
 
         function toggleMenu() {
             const menu = document.getElementById('side-menu');
             menu.classList.toggle('open');
-            document.getElementById('menu-toggle').innerText = menu.classList.contains('open') ? '✕ CLOSE' : '☰ LIBRARY';
-        }
-
-        function switchMenu(module) {
-            if(!sheetId) return;
-            const query = `?sheet=${sheetId}&id=${charName}`;
-            document.getElementById('frame-menu-content').src = `modules/${module}/index.html${query}`;
-            
-            document.getElementById('tab-comp').classList.toggle('active', module === 'compendium');
-            document.getElementById('tab-brow').classList.toggle('active', module === 'asset-browser');
-        }
-
-        function openCreator() {
-            const sId = document.getElementById('sheet-input').value.trim();
-            if (!sId) {
-                alert("Please enter a Spreadsheet ID first to link the identity bank.");
-                return;
-            }
-            // Opens character sheet in creation mode
-            window.open(`modules/character-sheet/index.html?sheet=${sId}&mode=create`, '_blank');
+            document.getElementById('menu-toggle').innerText = menu.classList.contains('open') ? '✕ DISCONNECT' : '☰ ASSET REPOSITORY';
         }
 
         function establishLink() {
             const sId = document.getElementById('sheet-input').value.trim();
             const cName = document.getElementById('name-input').value.trim();
+            
             if (sId && cName) {
-                window.location.href = `index.html?sheet=${sId}&id=${cName}`;
+                // Standardizing the redirect to use URL params for GH Pages
+                window.location.href = `index.html?sheet=${sId}&id=${encodeURIComponent(cName)}`;
             } else {
-                alert("VOID ERROR: Credentials incomplete.");
+                alert("TERMINAL ERROR: Required credentials missing.");
             }
         }
 
+        // Initialize on load
         init();
     </script>
 </body>
