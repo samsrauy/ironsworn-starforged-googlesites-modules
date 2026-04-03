@@ -1,110 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
     <style>
-        :root { --neon: #00ff9d; --bg: #050508; --panel: #0b0d12; --border: #1a1c23; }
+        :root { --neon: #00ff9d; --panel: #0b0d12; --border: #1a1c23; }
         #terminal-grid { 
             display: grid; 
             grid-template-columns: 380px 1fr; 
             grid-template-rows: 60px 1fr 350px; 
-            height: 100vh; 
-            gap: 2px; 
-            background: var(--border); 
+            height: 100vh; gap: 2px; background: var(--border); 
         }
         .header-bar { 
-            grid-column: 1 / -1; 
-            background: var(--panel); 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; 
-            padding: 0 20px; 
-            border-bottom: 1px solid var(--neon); 
+            grid-column: 1 / -1; background: var(--panel); 
+            display: flex; align-items: center; justify-content: space-between; 
+            padding: 0 20px; border-bottom: 1px solid var(--neon); 
         }
-        .module-frame { background: var(--panel); overflow-y: auto; position: relative; }
-        #frame-char { grid-row: 2 / 4; border-right: 1px solid var(--border); }
+        .module-frame { background: var(--panel); overflow-y: auto; border: 1px solid var(--border); }
+        #frame-char { grid-row: 2 / 4; }
         #frame-map { grid-column: 2; grid-row: 2; }
-        #frame-journal { grid-column: 2; grid-row: 3; border-top: 1px solid var(--border); }
-        
-        .nav-btn { 
-            background: none; border: 1px solid var(--neon); color: var(--neon); 
-            padding: 5px 12px; cursor: pointer; font-family: inherit; font-size: 12px;
-            transition: 0.2s;
-        }
+        #frame-journal { grid-column: 2; grid-row: 3; }
+        .nav-btn { background: none; border: 1px solid var(--neon); color: var(--neon); padding: 5px 12px; cursor: pointer; font-family: inherit; margin-left: 10px; font-size: 12px; }
         .nav-btn:hover { background: var(--neon); color: #000; }
-
-        /* Drawer System */
-        .drawer { 
-            position: fixed; right: -450px; top: 60px; width: 450px; 
-            height: calc(100% - 60px); background: var(--panel); 
-            border-left: 1px solid var(--neon); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-            z-index: 1000; overflow-y: auto; padding: 10px;
-        }
-        .drawer.active { right: 0; }
     </style>
 </head>
 <body>
 
 <div id="terminal-grid">
     <div class="header-bar">
-        <div id="char-display" style="font-weight:bold;">PILOT: ---</div>
-        <div style="display:flex; gap:10px;">
-            <button class="nav-btn" onclick="toggleDrawer('asset-drawer', 'asset-browser/asset-browser.html')">☰ ASSETS</button>
-            <button class="nav-btn" onclick="toggleDrawer('compendium-drawer', 'compendium/compendium.html')">☰ COMPENDIUM</button>
-            <div style="margin-left:20px; letter-spacing:2px; color:var(--neon); opacity:0.8;">VOID-LINK // NAV-OS</div>
+        <div id="char-display">PILOT: ---</div>
+        <div>
+            <button class="nav-btn" onclick="toggleAssets()">☰ ASSETS</button>
+            <span style="margin-left:20px; letter-spacing:2px; color:var(--neon); opacity: 0.7;">VOID-LINK // NAV-OS</span>
         </div>
     </div>
     
     <div id="frame-char" class="module-frame"></div>
     <div id="frame-map" class="module-frame"></div>
     <div id="frame-journal" class="module-frame"></div>
-
-    <div id="asset-drawer" class="drawer"><div id="frame-assets"></div></div>
-    <div id="compendium-drawer" class="drawer"><div id="frame-compendium"></div></div>
+    
+    <div id="frame-assets" style="display:none; position:fixed; right:0; top:60px; width:400px; height:calc(100% - 60px); background:var(--panel); border-left:1px solid var(--neon); z-index:100;"></div>
 </div>
 
 <script>
-    const GITHUB_MODULES = "https://samsrauy.github.io/void-link/modules/";
+    const GITHUB_BASE = "https://samsrauy.github.io/void-link/modules/";
 
-    function toggleDrawer(drawerId, path) {
-        const drawer = document.getElementById(drawerId);
-        const isActive = drawer.classList.contains('active');
-        
-        // Close all drawers
-        document.querySelectorAll('.drawer').forEach(d => d.classList.remove('active'));
-        
-        if (!isActive) {
-            drawer.classList.add('active');
-            const targetId = drawer.querySelector('div').id;
-            loadModule(targetId, path);
+    function toggleAssets() {
+        const f = document.getElementById('frame-assets');
+        if (f.style.display === 'none') {
+            f.style.display = 'block';
+            loadModule('frame-assets', 'asset-browser/asset-browser.html');
+        } else {
+            f.style.display = 'none';
         }
     }
 
     async function loadModule(id, path) {
         const target = document.getElementById(id);
-        const fullPath = path.startsWith('http') ? path : GITHUB_MODULES + path;
-        try {
-            const response = await fetch(fullPath);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            target.innerHTML = await response.text();
-            
-            // Critical script revival for module logic (like generateSector)
-            target.querySelectorAll('script').forEach(old => {
-                const n = document.createElement('script');
-                if (old.src) n.src = old.src;
-                else n.textContent = old.textContent;
-                document.body.appendChild(n);
+        const fullPath = path.startsWith('http') ? path : GITHUB_BASE + path;
+        
+        const response = await fetch(fullPath);
+        const html = await response.text();
+        target.innerHTML = html;
+
+        // Create a sequence of promises to ensure scripts are executed and ready
+        const scripts = Array.from(target.querySelectorAll('script'));
+        for (const oldScript of scripts) {
+            await new Promise((resolve, reject) => {
+                const newScript = document.createElement('script');
+                if (oldScript.src) {
+                    newScript.src = oldScript.src;
+                    newScript.onload = resolve;
+                    newScript.onerror = reject;
+                } else {
+                    newScript.textContent = oldScript.textContent;
+                    // Force inline scripts into the head to register functions globally
+                    document.head.appendChild(newScript);
+                    resolve();
+                }
+                if (oldScript.src) document.head.appendChild(newScript);
             });
-        } catch (err) { console.error("Module Load Failure:", err); }
+        }
     }
 
     async function bootTerminal() {
-        if(window.charId) document.getElementById('char-display').innerText = `PILOT: ${window.charId.toUpperCase()}`;
+        if(window.charId) {
+            const display = document.getElementById('char-display');
+            if(display) display.innerText = `PILOT: ${window.charId.toUpperCase()}`;
+        }
         
-        // Load Core Modules
-        await loadModule('frame-char', 'character-sheet/character-sheet.html');
-        await loadModule('frame-map', 'map/map.html');
-        await loadModule('frame-journal', 'journal/journal.html');
+        // This 'await' is the key: it blocks the loading screen until all 3 are 100% ready
+        await Promise.all([
+            loadModule('frame-char', 'character-sheet/character-sheet.html'),
+            loadModule('frame-map', 'map/map.html'),
+            loadModule('frame-journal', 'journal/journal.html')
+        ]);
+
+        console.log("Terminal: Neural Link Established. All Modules Hot.");
+        return true;
     }
 </script>
 </body>
