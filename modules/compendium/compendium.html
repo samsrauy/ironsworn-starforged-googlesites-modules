@@ -5,19 +5,24 @@
     <title>Compendium | Starforged Neural Link</title>
     <link rel="stylesheet" href="../../css/style.css">
     <style>
-        body { background: #0b0d12; color: #bcdee7; font-family: 'Exo 2', sans-serif; padding: 20px; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #454d5d; padding-bottom: 10px; }
+        body { background: #0b0d12; color: #bcdee7; font-family: 'Exo 2', sans-serif; padding: 20px; overflow-y: auto; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #454d5d; padding-bottom: 10px; position: sticky; top: 0; background: #0b0d12; z-index: 10; }
         .tab-btn { background: #1a1c23; border: 1px solid #454d5d; color: #00ff9d; padding: 8px 15px; cursor: pointer; font-weight: bold; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 1px; }
         .tab-btn.active { background: #00ff9d; color: #000; border-color: #00ff9d; }
+        
         .search-bar { width: 100%; padding: 12px; background: #161922; border: 1px solid #454d5d; color: #00ff9d; margin-bottom: 20px; box-sizing: border-box; font-family: 'Share Tech Mono'; outline: none; }
         .content-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
+        
         .compendium-card { background: #1a1c23; border: 1px solid #454d5d; border-radius: 4px; padding: 15px; display: flex; flex-direction: column; transition: 0.2s; }
         .compendium-card:hover { border-color: #00ff9d; }
+        
         .card-tag { font-size: 0.6rem; color: #ff0055; text-transform: uppercase; margin-bottom: 5px; font-weight: bold; opacity: 0.8; }
         .card-title { font-weight: bold; color: #00ff9d; margin-bottom: 10px; display: block; border-bottom: 1px solid #2d333f; padding-bottom: 5px; letter-spacing: 1px; }
-        .card-text { font-size: 0.85rem; line-height: 1.5; color: #bcdee7; flex-grow: 1; }
+        .card-text { font-size: 0.85rem; line-height: 1.5; color: #bcdee7; flex-grow: 1; white-space: pre-wrap; }
+        
         .oracle-roll-btn { margin-top: 15px; background: none; border: 1px solid #00ff9d; color: #00ff9d; padding: 8px; font-family: 'Exo 2'; cursor: pointer; font-weight: bold; font-size: 0.7rem; text-transform: uppercase; }
         .oracle-roll-btn:hover { background: #00ff9d; color: #000; }
+        
         .inline-link { background: rgba(0, 255, 153, 0.1); border: none; border-bottom: 1px dashed #00ff9d; color: #00ff9d; cursor: pointer; padding: 0 2px; font-family: inherit; }
         #status-msg { font-size: 0.6rem; color: #454d5d; margin-bottom: 10px; text-transform: uppercase; }
     </style>
@@ -27,73 +32,32 @@
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('move', this)">Moves</button>
         <button class="tab-btn" onclick="switchTab('oracle_rollable', this)">Oracles</button>
+        <button class="tab-btn" onclick="switchTab('asset', this)">Assets</button>
     </div>
     
     <input type="text" id="search" class="search-bar" placeholder="TYPE TO FILTER DATABASE..." oninput="filterResults()">
     <div id="compendium-grid" class="content-grid"></div>
-
-    <script src="../../js/sync.js"></script>
-    <script src="../../js/datasworn.js"></script>
 
     <script>
         let currentType = 'move';
         let fullData = [];
 
         /**
-         * REGEX: Neural Link Transformation
-         * Converts [Text](id:...) into triggerable Neural Roll buttons.
-         */
-        function formatText(text) {
-            if (!text) return "";
-            return text.replace(/\[([^\]]+)\]\(id:([^)]+)\)/g, (match, name, id) => {
-                return `<button class="inline-link" onclick="handleMoveLink('${id}', '${name.replace(/'/g, "\\'")}')">${name}</button>`;
-            });
-        }
-
-        async function handleMoveLink(id, name) {
-            if (confirm(`EXECUTE NEURAL ROLL: ${name.toUpperCase()}?`)) {
-                // Now safely calls triggerNeuralRoll in sync.js
-                if (typeof triggerNeuralRoll === 'function') await triggerNeuralRoll(name, 0, 0);
-            }
-        }
-
-        async function handleOracleRoll(oracleName, oracleId) {
-            const roll = Math.floor(Math.random() * 100) + 1;
-            const logMsg = `ORACLE: ${oracleName} rolled ${roll}`;
-            // Nervous System uplink
-            await saveStat(charId, "history_entry", logMsg);
-            alert(`${oracleName}: Result ${roll} (Logged to Archive)`);
-        }
-
-        /**
-         * THE CRAWLER
-         * Navigates the DNA (window.datasworn) to find specific item types.
-         */
-        function findItems(obj, type) {
-            let results = [];
-            if (!obj || typeof obj !== 'object') return results;
-            if (obj.type === type) results.push(obj);
-            for (let k in obj) { 
-                if (obj[k] && typeof obj[k] === 'object') results = results.concat(findItems(obj[k], type)); 
-            }
-            return results;
-        }
-
-        /**
-         * THE NEURAL PRIME INIT
-         * Eliminates the recursive loop. Waits for DNA core then populates UI.
+         * INITIALIZATION
+         * Authenticates with parent core to retrieve Datasworn DNA.
          */
         async function init() {
             try {
-                // Wait for datasworn.js to finish its fetch
-                await window.dataswornReady;
-
-                if (!window.datasworn) throw new Error("DNA Core Fragmented or Offline.");
+                // Wait for the parent shell to finish loading the data
+                await window.parent.dataswornReady;
+                const ds = window.parent.datasworn;
+                
+                if (!ds) throw new Error("DNA Core Fragmented.");
 
                 document.getElementById('status-msg').innerText = "DATABASE ONLINE";
                 
-                // Perform initial data pull
-                fullData = findItems(window.datasworn, currentType);
+                // Load initial category
+                fullData = findItems(ds, currentType);
                 filterResults();
 
             } catch (err) {
@@ -102,13 +66,67 @@
             }
         }
 
+        /**
+         * ORACLE ENGINE
+         * Performs a legitimate lookup based on Datasworn table rows.
+         */
+        async function handleOracleRoll(oracleName, oracleId) {
+            const oracle = fullData.find(o => o._id === oracleId);
+            if (!oracle || !oracle.rows) return;
+
+            const roll = Math.floor(Math.random() * 100) + 1;
+            const resultRow = oracle.rows.find(r => roll >= r.roll[0] && roll <= (r.roll[1] || r.roll[0]));
+            const resultText = resultRow ? resultRow.text : "Unknown Result";
+
+            const logMsg = `ORACLE [${oracleName}]: Rolled ${roll} -> ${resultText}`;
+            
+            // Uplink to the persistent campaign log
+            await window.parent.saveStat(window.parent.charId, "history_entry", logMsg);
+            alert(`${oracleName.toUpperCase()}\nRoll: ${roll}\nResult: ${resultText}`);
+        }
+
+        /**
+         * TEXT FORMATTER
+         * Converts [Text](id:...) references into clickable neural links.
+         */
+        function formatText(text) {
+            if (!text) return "No data available.";
+            // Support both standard markdown and ID-based move links
+            return text.replace(/\[([^\]]+)\]\(id:([^)]+)\)/g, (match, name, id) => {
+                return `<button class="inline-link" onclick="handleMoveLink('${id}', '${name.replace(/'/g, "\\'")}')">${name}</button>`;
+            });
+        }
+
+        async function handleMoveLink(id, name) {
+            if (confirm(`EXECUTE NEURAL ROLL: ${name.toUpperCase()}?`)) {
+                await window.parent.triggerNeuralRoll(name, 0, 0);
+            }
+        }
+
+        /**
+         * RECURSIVE CRAWLER
+         * Navigates the Starforged JSON tree to find specific object types.
+         */
+        function findItems(obj, type) {
+            let results = [];
+            if (!obj || typeof obj !== 'object') return results;
+            if (obj.type === type) results.push(obj);
+            
+            for (let k in obj) {
+                if (obj[k] && typeof obj[k] === 'object') {
+                    results = results.concat(findItems(obj[k], type));
+                }
+            }
+            return results;
+        }
+
         function switchTab(type, btn) {
             currentType = type;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             
-            // Re-crawl based on type
-            fullData = findItems(window.datasworn, currentType);
+            fullData = findItems(window.parent.datasworn, currentType);
+            document.getElementById('search').value = '';
             filterResults();
         }
 
@@ -116,7 +134,6 @@
             const query = document.getElementById('search').value.toLowerCase();
             const grid = document.getElementById('compendium-grid');
             
-            // Filter list based on search bar input
             const filtered = fullData.filter(item => 
                 (item.name && item.name.toLowerCase().includes(query)) || 
                 (item._id && item._id.toLowerCase().includes(query))
@@ -124,11 +141,9 @@
 
             grid.innerHTML = filtered.map(item => `
                 <div class="compendium-card">
-                    <div class="card-tag">${currentType.replace('_', ' ')}</div>
+                    <div class="card-tag">${currentType.replace(/_/g, ' ')}</div>
                     <span class="card-title">${(item.name || "UNNAMED").toUpperCase()}</span>
-                    <div class="card-text">
-                        ${formatText(item.text || item.description || "No localized data available.")}
-                    </div>
+                    <div class="card-text">${formatText(item.text || item.description)}</div>
                     ${currentType === 'oracle_rollable' ? 
                         `<button class="oracle-roll-btn" onclick="handleOracleRoll('${item.name}', '${item._id}')">CONSULT ORACLE</button>` : ''
                     }
@@ -136,7 +151,6 @@
             `).join('');
         }
 
-        // Start the link
         init();
     </script>
 </body>
