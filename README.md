@@ -46,3 +46,6 @@ To log in as a specific character, simply append `?id=CharacterName` to the end 
 * `/js/sync.js`: The neural link adapter using `google.script.run`.
 * `/js/datasworn.js`: External data ruleset.
 * `/modules`: Specific character sheet, map, and journal UI components.
+
+> [!Note]
+> To access the game you can click here after setting up your Google Sheets and Google Docs backend.  https://samsrauy.github.io/void-link/void-link-term.html 
