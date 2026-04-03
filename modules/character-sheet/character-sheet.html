@@ -65,19 +65,22 @@
 
         /**
          * INITIALIZATION
-         * Reaching up to the parent window for data and ID
+         * Authenticates with parent window and loads character data.
          */
         async function init() {
             try {
-                // 1. Wait for DNA (Datasworn) from the parent window
+                // 1. Wait for Datasworn Readiness
                 await window.parent.dataswornReady;
                 
-                // 2. Fetch Character Nervous System via the parent window
+                // 2. Fetch Character Nervous System from parent (sync.js)
                 const data = await window.parent.loadStats(window.parent.charId);
                 if (!data) throw new Error("Character Record Not Found");
                 
                 charData = data;
-                document.getElementById('char-display').innerText = (data.name || window.parent.charId).toUpperCase();
+                
+                // Set Display Name
+                const displayName = data.name || window.parent.charId;
+                document.getElementById('char-display').innerText = displayName.toUpperCase();
                 
                 // Map Core Stats to UI
                 ['edge','heart','iron','shadow','wits'].forEach(s => {
@@ -89,10 +92,11 @@
                 document.getElementById('tracks-container').innerHTML = '';
                 document.getElementById('momentum-container').innerHTML = '';
                 
-                renderResource('health', 0, 5, parseInt(data.health || 0), 'tracks-container');
-                renderResource('spirit', 0, 5, parseInt(data.spirit || 0), 'tracks-container');
-                renderResource('supply', 0, 5, parseInt(data.supply || 0), 'tracks-container');
-                renderResource('momentum', -6, 10, parseInt(data.momentum || 0), 'momentum-container');
+                // Starforged standard track limits
+                renderResource('health', 0, 5, parseInt(data.health ?? 5), 'tracks-container');
+                renderResource('spirit', 0, 5, parseInt(data.spirit ?? 5), 'tracks-container');
+                renderResource('supply', 0, 5, parseInt(data.supply ?? 5), 'tracks-container');
+                renderResource('momentum', -6, 10, parseInt(data.momentum ?? 2), 'momentum-container');
 
             } catch (err) {
                 console.error("Sheet Init Failure:", err);
@@ -100,11 +104,18 @@
             }
         }
 
+        /**
+         * RESOURCE RENDERER
+         * Creates a clickable track for Health, Spirit, Supply, or Momentum.
+         */
         function renderResource(name, min, max, current, containerId) {
             const container = document.getElementById(containerId);
             const row = document.createElement('div');
             row.className = 'track-row';
-            row.innerHTML = `<span class="track-label">${name.toUpperCase()}</span><div class="track-dots" id="dots-${name}"></div>`;
+            row.innerHTML = `
+                <span class="track-label">${name.toUpperCase()}</span>
+                <div class="track-dots" id="dots-${name}"></div>
+            `;
             container.appendChild(row);
 
             const dotBox = row.querySelector('.track-dots');
@@ -114,10 +125,10 @@
                 dot.title = `${name}: ${i}`;
                 
                 dot.onclick = async () => {
-                    // UI Update (Optimistic)
+                    // Update Local UI (Optimistic)
                     updateDotsUI(name, i, min, max);
                     
-                    // Logic Update (Persistence via Parent)
+                    // Persist to Cloud via parent
                     charData[name] = i;
                     await window.parent.saveStat(window.parent.charId, name, i);
                 };
@@ -136,7 +147,7 @@
 
         /**
          * ACTION ROLLS
-         * Triggers a d6 + stat action roll via the parent window
+         * Triggers a d6 + stat action roll via the parent window's neural link.
          */
         async function triggerMoveRoll(statName) {
             const statKey = statName.toLowerCase();
@@ -146,16 +157,21 @@
             overlay.style.display = 'block';
             document.getElementById('roll-res').innerText = "CALCULATING...";
             
-            // Trigger centralized roll via parent's sync.js
-            const roll = await window.parent.triggerNeuralRoll(statName, val, 0);
-            
-            // Update the local overlay UI
-            document.getElementById('roll-res').innerText = roll.result;
-            document.getElementById('roll-res').style.color = roll.result.includes("MISS") ? "#ff0055" : "#00ff9d";
-            document.getElementById('roll-details').innerText = `${statName} (+${val}) vs ${roll.details}`;
+            try {
+                // Trigger centralized roll via parent (sync.js)
+                const roll = await window.parent.triggerNeuralRoll(statName, val, 0);
+                
+                // Update Local UI with result
+                document.getElementById('roll-res').innerText = roll.result;
+                document.getElementById('roll-res').style.color = roll.result.includes("MISS") ? "#ff0055" : "#00ff9d";
+                document.getElementById('roll-details').innerText = `${statName} (+${val}) vs ${roll.details}`;
+            } catch (e) {
+                document.getElementById('roll-res').innerText = "LINK TIMEOUT";
+                console.error("Roll Error:", e);
+            }
         }
 
-        // Initialize Character Record
+        // Boot system
         init();
     </script>
 </body>
