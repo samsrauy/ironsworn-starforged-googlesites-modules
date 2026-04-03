@@ -85,18 +85,24 @@
         }
 
         async function init() {
-            // DUAL GUARD: Wait for Data and Sync Engine
             const isSyncReady = (typeof GAS_URL !== 'undefined' && typeof loadStats === 'function');
-            const isDataReady = (typeof datasworn !== 'undefined' && datasworn !== null);
+            const isDataReady = (typeof datasworn !== 'undefined' && datasworn.moves); // Check for 'moves' specifically
 
             if (!isSyncReady || !isDataReady) {
-                console.log("Compendium: Waiting for uplink...");
                 setTimeout(init, 500);
                 return;
             }
-
+            
+            // Try to load
+            fullData = findItems(datasworn, currentType);
+            
+            if (fullData.length === 0) {
+                setTimeout(init, 1000);
+                return;
+            }
+            
             document.getElementById('status-msg').innerText = "DATABASE ONLINE";
-            loadData();
+            filterResults();
         }
 
         function loadData() {
