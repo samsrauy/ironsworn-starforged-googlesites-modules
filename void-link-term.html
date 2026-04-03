@@ -3,66 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        :root { --neon-green: #00ff9d; --deep-bg: #050508; --panel-bg: #0b0d12; --border-dim: #1a1c23; }
-        #terminal-grid { display: grid; grid-template-columns: 350px 1fr; grid-template-rows: 60px 1fr 300px; height: 100vh; gap: 2px; background: var(--border-dim); }
-        .header-bar { grid-column: 1 / -1; background: var(--panel-bg); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid var(--neon-green); }
-        .module-frame { background: var(--panel-bg); overflow-y: auto; border: 1px solid var(--border-dim); }
-        #frame-char { grid-row: 2 / 4; }
+        :root { --neon: #00ff9d; --bg: #050508; --panel: #0b0d12; --border: #1a1c23; }
+        #terminal-grid { 
+            display: grid; 
+            grid-template-columns: 380px 1fr; 
+            grid-template-rows: 60px 1fr 350px; 
+            height: 100vh; 
+            gap: 2px; 
+            background: var(--border); 
+        }
+        .header-bar { 
+            grid-column: 1 / -1; 
+            background: var(--panel); 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            padding: 0 20px; 
+            border-bottom: 1px solid var(--neon); 
+        }
+        .module-frame { background: var(--panel); overflow-y: auto; position: relative; }
+        #frame-char { grid-row: 2 / 4; border-right: 1px solid var(--border); }
         #frame-map { grid-column: 2; grid-row: 2; }
-        #frame-journal { grid-column: 2; grid-row: 3; }
+        #frame-journal { grid-column: 2; grid-row: 3; border-top: 1px solid var(--border); }
+        
+        .nav-btn { 
+            background: none; border: 1px solid var(--neon); color: var(--neon); 
+            padding: 5px 12px; cursor: pointer; font-family: inherit; font-size: 12px;
+            transition: 0.2s;
+        }
+        .nav-btn:hover { background: var(--neon); color: #000; }
+
+        /* Drawer System */
+        .drawer { 
+            position: fixed; right: -450px; top: 60px; width: 450px; 
+            height: calc(100% - 60px); background: var(--panel); 
+            border-left: 1px solid var(--neon); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            z-index: 1000; overflow-y: auto; padding: 10px;
+        }
+        .drawer.active { right: 0; }
     </style>
 </head>
 <body>
 
 <div id="terminal-grid">
     <div class="header-bar">
-        <div id="char-display">PILOT: LOADING...</div>
-        <div style="letter-spacing: 2px;">VOID-LINK // NAV-OS</div>
+        <div id="char-display" style="font-weight:bold;">PILOT: ---</div>
+        <div style="display:flex; gap:10px;">
+            <button class="nav-btn" onclick="toggleDrawer('asset-drawer', 'asset-browser/asset-browser.html')">☰ ASSETS</button>
+            <button class="nav-btn" onclick="toggleDrawer('compendium-drawer', 'compendium/compendium.html')">☰ COMPENDIUM</button>
+            <div style="margin-left:20px; letter-spacing:2px; color:var(--neon); opacity:0.8;">VOID-LINK // NAV-OS</div>
+        </div>
     </div>
     
     <div id="frame-char" class="module-frame"></div>
     <div id="frame-map" class="module-frame"></div>
     <div id="frame-journal" class="module-frame"></div>
+
+    <div id="asset-drawer" class="drawer"><div id="frame-assets"></div></div>
+    <div id="compendium-drawer" class="drawer"><div id="frame-compendium"></div></div>
 </div>
 
 <script>
-    // ABSOLUTE ADDRESSING CONFIG
     const GITHUB_MODULES = "https://samsrauy.github.io/void-link/modules/";
+
+    function toggleDrawer(drawerId, path) {
+        const drawer = document.getElementById(drawerId);
+        const isActive = drawer.classList.contains('active');
+        
+        // Close all drawers
+        document.querySelectorAll('.drawer').forEach(d => d.classList.remove('active'));
+        
+        if (!isActive) {
+            drawer.classList.add('active');
+            const targetId = drawer.querySelector('div').id;
+            loadModule(targetId, path);
+        }
+    }
 
     async function loadModule(id, path) {
         const target = document.getElementById(id);
         const fullPath = path.startsWith('http') ? path : GITHUB_MODULES + path;
-
         try {
             const response = await fetch(fullPath);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const html = await response.text();
-            target.innerHTML = html;
-
-            target.querySelectorAll('script').forEach(oldScript => {
-                const newScript = document.createElement('script');
-                newScript.textContent = oldScript.textContent;
-                document.body.appendChild(newScript);
+            target.innerHTML = await response.text();
+            
+            // Critical script revival for module logic (like generateSector)
+            target.querySelectorAll('script').forEach(old => {
+                const n = document.createElement('script');
+                if (old.src) n.src = old.src;
+                else n.textContent = old.textContent;
+                document.body.appendChild(n);
             });
-        } catch (err) {
-            console.error(`Injection Error:`, err);
-            target.innerHTML = `<div style="color:red;padding:20px;">MODULE ERROR: ${path}</div>`;
-        }
+        } catch (err) { console.error("Module Load Failure:", err); }
     }
 
     async function bootTerminal() {
-        // Set Header
-        const display = document.getElementById('char-display');
-        if (display) display.innerText = `PILOT: ${window.charId.toUpperCase()}`;
-
-        // Load modules with absolute paths
+        if(window.charId) document.getElementById('char-display').innerText = `PILOT: ${window.charId.toUpperCase()}`;
+        
+        // Load Core Modules
         await loadModule('frame-char', 'character-sheet/character-sheet.html');
         await loadModule('frame-map', 'map/map.html');
         await loadModule('frame-journal', 'journal/journal.html');
     }
-
-    // Trigger boot
-    bootTerminal();
 </script>
 </body>
 </html>
