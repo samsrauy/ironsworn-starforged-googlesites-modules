@@ -24,7 +24,9 @@
  * - Ensure your Google Sheet is shared as "Anyone with the link can view."
  * ==============================================================================
  */
-
+/**
+ * Code.gs - REFACTORED FOR CORS AND AUTO-INITIALIZATION
+ */
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const settings = ss.getSheetByName("Settings");
@@ -38,26 +40,27 @@ function doGet(e) {
   // ROUTE 1: LOG TO GOOGLE DOC
   if (action === "log") {
     const docId = settings.getRange("B3").getValue();
-    return appendToLog(e.parameter, docId);
+    return createResponse(appendToLog(e.parameter, docId));
   }
 
-  // ROUTE 2: DATA PERSISTENCE
+  // ROUTE 2: DATA PERSISTENCE (SAVE)
   if (id && field) {
     let data = stats.getDataRange().getValues();
     let headers = data[0];
     let colIdx = headers.indexOf(field);
 
-    // Auto-create column if missing (e.g., map_coords)
     if (colIdx === -1) {
       colIdx = headers.length;
       stats.getRange(1, colIdx + 1).setValue(field);
       data = stats.getDataRange().getValues();
     }
 
-    // Find or create character row
     let rowIdx = -1;
     for (let i = 1; i < data.length; i++) {
-      if (data[i][0].toString().toLowerCase() === id.toLowerCase()) { rowIdx = i + 1; break; }
+      if (data[i][0].toString().toLowerCase() === id.toLowerCase()) { 
+        rowIdx = i + 1; 
+        break; 
+      }
     }
 
     if (rowIdx !== -1) {
@@ -68,19 +71,44 @@ function doGet(e) {
       newRow[colIdx] = val;
       stats.appendRow(newRow);
     }
-    return ContentService.createTextOutput("OK");
-  } else if (id) {
-    // READ MODE
+    return createResponse("SUCCESS");
+  } 
+  
+  // ROUTE 3: DATA RETRIEVAL (LOAD)
+  else if (id) {
     const data = stats.getDataRange().getValues();
     const headers = data[0];
+    let characterFound = false;
+    let obj = {};
+
     for (let i = 1; i < data.length; i++) {
       if (data[i][0].toString().toLowerCase() === id.toLowerCase()) {
-        let obj = {};
         headers.forEach((h, idx) => obj[h] = data[i][idx]);
-        return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+        characterFound = true;
+        break;
       }
     }
+
+    // IF CHARACTER NOT FOUND: Return a blank template with the ID
+    // This prevents the 'Character Not Found' error in your console
+    if (!characterFound) {
+      headers.forEach(h => obj[h] = "");
+      obj[headers[0]] = id; 
+    }
+
+    return createJSONResponse(obj);
   }
+}
+
+/**
+ * Ensures responses are formatted correctly for CORS
+ */
+function createResponse(msg) {
+  return ContentService.createTextOutput(msg).setMimeType(ContentService.MimeType.TEXT);
+}
+
+function createJSONResponse(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function appendToLog(p, docId) {
@@ -91,6 +119,6 @@ function appendToLog(p, docId) {
     const para = body.appendParagraph(entry);
     para.setFontFamily("Courier New").setFontSize(9);
     if (p.message.includes("ROLL:")) para.setForegroundColor("#008b8b");
-    return ContentService.createTextOutput("OK");
-  } catch(err) { return ContentService.createTextOutput(err.toString()); }
+    return "OK";
+  } catch(err) { return err.toString(); }
 }
