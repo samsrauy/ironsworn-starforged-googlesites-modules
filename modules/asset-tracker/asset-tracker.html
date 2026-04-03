@@ -1,123 +1,78 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Asset Tracker | Starforged Manifest</title>
-    <link rel="stylesheet" href="../../css/style.css">
+<div id="tracker-scope">
     <style>
-        body { background: #0b0d12; color: #bcdee7; font-family: 'Exo 2', sans-serif; padding: 15px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #1a1c23; padding-bottom: 5px; }
-        .asset-list { display: flex; flex-direction: column; gap: 15px; }
+        #tracker-scope { background: #0b0d12; color: #bcdee7; font-family: 'Exo 2', sans-serif; padding: 15px; height: 100%; overflow-y: auto; }
+        #tracker-scope .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #1a1c23; padding-bottom: 5px; }
+        #tracker-scope .asset-list { display: flex; flex-direction: column; gap: 15px; }
         
-        .asset-card { 
+        #tracker-scope .asset-card { 
             background: #161922; border: 1px solid #454d5d; border-left: 4px solid #00ff9d; 
             padding: 15px; border-radius: 4px; position: relative; transition: 0.2s;
         }
-        .asset-card:hover { border-color: #00ff9d; background: #1a1c23; }
+        #tracker-scope .asset-name { color: #00ff9d; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; display: block; letter-spacing: 1px; }
         
-        .asset-name { color: #00ff9d; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; display: block; letter-spacing: 1px; }
-        
-        .ability-row { display: flex; gap: 12px; margin-top: 10px; font-size: 0.85rem; align-items: flex-start; line-height: 1.4; }
-        .ability-check { 
-            width: 16px; height: 16px; border: 1px solid #00ff9d; 
-            cursor: pointer; flex-shrink: 0; margin-top: 2px; transition: 0.2s;
+        #tracker-scope .ability-row { display: flex; gap: 12px; margin-top: 10px; align-items: flex-start; font-size: 0.85rem; line-height: 1.4; }
+        #tracker-scope .ability-check { 
+            width: 14px; height: 14px; border: 2px solid #454d5d; cursor: pointer; flex-shrink: 0; margin-top: 2px;
         }
-        .ability-check.active { background: #00ff9d; box-shadow: 0 0 8px #00ff9d; }
+        #tracker-scope .ability-check.active { background: #00ff9d; border-color: #00ff9d; box-shadow: 0 0 5px #00ff9d; }
         
-        .inline-link { background: rgba(0, 255, 153, 0.1); border: none; border-bottom: 1px dashed #00ff9d; color: #00ff9d; cursor: pointer; padding: 0 2px; font-family: inherit; }
-        .inline-link:hover { background: #00ff9d; color: #000; }
-
-        .delete-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #ff0055; cursor: pointer; font-size: 0.8rem; opacity: 0.5; }
-        .delete-btn:hover { opacity: 1; }
-        
-        .status-msg { font-size: 0.6rem; color: #454d5d; text-transform: uppercase; }
+        #tracker-scope .remove-btn { 
+            position: absolute; top: 10px; right: 10px; color: #ff0055; font-size: 0.7rem; 
+            cursor: pointer; opacity: 0.5; font-family: 'Share Tech Mono';
+        }
+        #tracker-scope .remove-btn:hover { opacity: 1; }
+        #tracker-scope #sync-status { font-size: 0.6rem; color: #454d5d; font-family: 'Share Tech Mono'; }
     </style>
-</head>
-<body>
+
     <div class="header">
-        <span style="font-size:0.7rem; letter-spacing:2px;">ACTIVE ASSET MANIFEST</span>
-        <span id="sync-status" class="status-msg">UPLINKING...</span>
-    </div>
-    
-    <div id="active-assets" class="asset-list">
+        <span style="font-size: 0.7rem; letter-spacing: 2px;">ACTIVE ASSET MANIFEST</span>
+        <div id="sync-status">SYSTEM ONLINE</div>
     </div>
 
-    <script>
+    <div id="my-assets-container" class="asset-list">
+        <div style="opacity:0.5; font-size:0.8rem;">Scanning neural links for installed assets...</div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const scope = document.getElementById('tracker-scope');
         let myAssets = [];
 
-        function formatAssetDescription(text) {
-            if (!text) return "";
-            return text.replace(/\[([^\]]+)\]\(id:([^)]+)\)/g, (match, name, id) => {
-                return `<button class="inline-link" onclick="handleAssetRoll('${id}', '${name.replace(/'/g, "\\'")}')">${name}</button>`;
-            });
-        }
-
-        async function handleAssetRoll(id, name) {
-            if (confirm(`INITIATE ROLL VIA ASSET: ${name.toUpperCase()}?`)) {
-                await window.parent.triggerNeuralRoll(name, 0, 0);
-            }
-        }
-
-        /**
-         * SEARCH ENGINE
-         * Navigates standard Datasworn schema to find specific asset data.
-         */
-        function findAssetById(targetId) {
-            // Check for standard Datasworn schema first
-            const collections = window.parent.datasworn.asset_collections || window.parent.datasworn.collections?.assets;
-            if (!collections) return null;
-            
-            for (const cat of Object.values(collections)) {
-                // Dig into 'contents' where Datasworn actually keeps the assets
-                const assets = cat.contents || cat.assets;
-                if (assets && assets[targetId]) {
-                    return assets[targetId];
-                }
-            }
-            return null;
-        }
-
-        async function initTracker() {
+        window.initTracker = async function() {
             try {
-                await window.parent.dataswornReady;
-                const stats = await window.parent.loadStats(window.parent.charId);
-                
-                if (stats && stats.assets) {
-                    try { myAssets = JSON.parse(stats.assets); } catch(e) { myAssets = []; }
-                }
-
-                document.getElementById('sync-status').innerText = "SYSTEM ONLINE";
-                renderAssets();
-
-            } catch (err) {
-                console.error("Tracker Failure:", err);
-                document.getElementById('sync-status').innerText = "LINK SEVERED";
+                await window.dataswornReady;
+                const stats = await loadStats(window.charId);
+                myAssets = stats.assets ? JSON.parse(stats.assets) : [];
+                renderActiveAssets();
+            } catch (e) {
+                console.error("Tracker Sync Error:", e);
+                scope.querySelector('#sync-status').innerText = "SYNC FAILED";
             }
-        }
+        };
 
-        function renderAssets() {
-            const container = document.getElementById('active-assets');
-            container.innerHTML = "";
-
+        function renderActiveAssets() {
+            const container = scope.querySelector('#my-assets-container');
             if (myAssets.length === 0) {
-                container.innerHTML = `<div style="text-align:center; padding:40px; color:#454d5d; font-size:0.8rem;">NO ASSETS INSTALLED</div>`;
+                container.innerHTML = `<div style="text-align:center; padding:20px; color:#454d5d; border:1px dashed #454d5d;">NO ASSETS INSTALLED</div>`;
                 return;
             }
 
+            container.innerHTML = '';
             myAssets.forEach((entry, index) => {
-                const data = findAssetById(entry.id);
-                if (!data) return;
+                const assetData = findAssetInDatasworn(entry.id);
+                if (!assetData) return;
 
                 const card = document.createElement('div');
                 card.className = 'asset-card';
                 card.innerHTML = `
-                    <button class="delete-btn" onclick="removeAsset(${index})">DECOMMISSION</button>
-                    <span class="asset-name">${data.name}</span>
-                    ${data.abilities.map((ab, i) => `
+                    <div class="remove-btn" onclick="removeAsset(${index})">[UNINSTALL]</div>
+                    <span class="asset-name">${assetData.name}</span>
+                    ${(assetData.abilities || []).map((ab, i) => `
                         <div class="ability-row">
                             <div class="ability-check ${entry.enabled.includes(i) ? 'active' : ''}" 
                                  onclick="toggleAbility(${index}, ${i})"></div>
-                            <span>${formatAssetDescription(ab.text || ab.description)}</span>
+                            <span>${ab.text}</span>
                         </div>
                     `).join('')}
                 `;
@@ -125,32 +80,40 @@
             });
         }
 
-        async function toggleAbility(assetIdx, abilityIdx) {
+        function findAssetInDatasworn(id) {
+            const collections = window.datasworn.asset_collections;
+            for (let cat in collections) {
+                if (collections[cat].contents[id]) return collections[cat].contents[id];
+            }
+            return null;
+        }
+
+        window.toggleAbility = async function(assetIdx, abilityIdx) {
             const asset = myAssets[assetIdx];
             if (asset.enabled.includes(abilityIdx)) {
                 asset.enabled = asset.enabled.filter(i => i !== abilityIdx);
             } else {
                 asset.enabled.push(abilityIdx);
             }
-            renderAssets();
-            syncToCloud();
-        }
+            renderActiveAssets();
+            syncAssetChanges();
+        };
 
-        async function removeAsset(index) {
-            if (confirm("Permanently delete this asset from your manifest?")) {
+        window.removeAsset = async function(index) {
+            if (confirm("Permanently uninstall this asset?")) {
                 myAssets.splice(index, 1);
-                renderAssets();
-                syncToCloud();
+                renderActiveAssets();
+                syncAssetChanges();
             }
+        };
+
+        async function syncAssetChanges() {
+            scope.querySelector('#sync-status').innerText = "UPLINKING...";
+            await saveStat(window.charId, "assets", JSON.stringify(myAssets));
+            scope.querySelector('#sync-status').innerText = "SYSTEM ONLINE";
         }
 
-        async function syncToCloud() {
-            document.getElementById('sync-status').innerText = "SYNCING...";
-            await window.parent.saveStat(window.parent.charId, "assets", JSON.stringify(myAssets));
-            document.getElementById('sync-status').innerText = "SYSTEM ONLINE";
-        }
-
+        // Initialize immediately
         initTracker();
-    </script>
-</body>
-</html>
+    })();
+</script>
