@@ -6,7 +6,7 @@
 function doGet(e) {
   const html = HtmlService.createTemplateFromFile('Index');
   
-  // Extract ID from URL parameter
+  // Extract ID from URL parameter (e.g., ?id=Sammie)
   html.charId = e.parameter.id || '';
   
   return html.evaluate() 
@@ -23,15 +23,18 @@ function saveStatServer(id, field, val) {
   
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const stats = ss.getSheetByName("Stat");
+  if (!stats) return "ERROR: 'Stat' SHEET NOT FOUND";
+
   const data = stats.getDataRange().getValues();
   const headers = data[0];
-  
   let colIdx = headers.indexOf(field);
   if (colIdx === -1) return "ERROR: INVALID FIELD";
 
+  const searchId = id.toString().trim().toLowerCase();
   let rowIdx = -1;
+
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0].toString().toLowerCase() === id.toLowerCase()) {
+    if (data[i][0].toString().trim().toLowerCase() === searchId) {
       rowIdx = i + 1;
       break; 
     }
@@ -41,9 +44,8 @@ function saveStatServer(id, field, val) {
   if (rowIdx !== -1) {
     stats.getRange(rowIdx, colIdx + 1).setValue(val);
   } else {
-    // New Pilot creation logic
     let newRow = new Array(headers.length).fill("");
-    newRow[0] = id; 
+    newRow[0] = id.trim(); // Use the name as provided
     newRow[colIdx] = val;
     stats.appendRow(newRow);
   }
@@ -60,18 +62,20 @@ function loadStatsServer(id) {
   const stats = ss.getSheetByName("Stat");
   const data = stats.getDataRange().getValues();
   const headers = data[0];
+  const searchId = id.toString().trim().toLowerCase();
+
   let obj = {};
   let found = false;
 
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0].toString().toLowerCase() === id.toLowerCase()) {
+    if (data[i][0].toString().trim().toLowerCase() === searchId) {
       headers.forEach((h, idx) => obj[h] = data[i][idx]);
       found = true;
       break;
     }
   }
 
-  // If pilot doesn't exist yet, return a template with their ID
+  // If pilot doesn't exist, return empty template with the ID
   if (!found) {
     headers.forEach(h => obj[h] = "");
     obj[headers[0]] = id; 
@@ -81,7 +85,7 @@ function loadStatsServer(id) {
 }
 
 /**
- * ARCHIVE INTERFACE: Write to Google Doc / History
+ * ARCHIVE INTERFACE: Write to Google Doc
  */
 function logServer(id, message) {
   try {
@@ -92,8 +96,7 @@ function logServer(id, message) {
     if (docId) {
       const doc = DocumentApp.openById(docId);
       const body = doc.getBody();
-      const timestamp = new Date().toLocaleString();
-      body.appendParagraph(`[${timestamp}] PILOT ${id}: ${message}`).setItalic(true);
+      body.appendParagraph(`[${new Date().toLocaleString()}] PILOT ${id}: ${message}`).setItalic(true);
     }
     return "LOGGED";
   } catch (e) {
