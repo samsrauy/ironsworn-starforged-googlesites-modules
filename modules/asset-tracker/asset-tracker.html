@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <title>Asset Tracker | Starforged Manifest</title>
     <link rel="stylesheet" href="../../css/style.css">
     <style>
         body { background: #0b0d12; color: #bcdee7; font-family: 'Exo 2', sans-serif; padding: 15px; }
@@ -23,7 +24,6 @@
         }
         .ability-check.active { background: #00ff9d; box-shadow: 0 0 8px #00ff9d; }
         
-        /* Neural Link Styling for Asset Text */
         .inline-link { background: rgba(0, 255, 153, 0.1); border: none; border-bottom: 1px dashed #00ff9d; color: #00ff9d; cursor: pointer; padding: 0 2px; font-family: inherit; }
         .inline-link:hover { background: #00ff9d; color: #000; }
 
@@ -44,10 +44,11 @@
 
     <script src="../../js/sync.js"></script>
     <script src="../../js/datasworn.js"></script>
+
     <script>
         let myAssets = [];
 
-        // 1. Text Formatter (The Neural Link Engine)
+        // 1. Neural Link: Regex to transform move IDs into Roll Buttons
         function formatAssetDescription(text) {
             if (!text) return "";
             return text.replace(/\[([^\]]+)\]\(id:([^)]+)\)/g, (match, name, id) => {
@@ -57,52 +58,50 @@
 
         async function handleAssetRoll(id, name) {
             if (confirm(`INITIATE ROLL VIA ASSET: ${name.toUpperCase()}?`)) {
-                if (typeof triggerNeuralRoll === 'function') {
-                    // Logic: Search character stats to find the right bonus, or default to 0
-                    await triggerNeuralRoll(name, 0, 0);
-                    alert("Roll logged to Archive.");
-                }
+                // Calls the nervous system (sync.js)
+                await triggerNeuralRoll(name, 0, 0);
             }
         }
 
-        // 2. Schema-compliant recursive finder
-        function findInDatasworn(obj, targetType) {
-            let results = [];
-            if (!obj || typeof obj !== 'object') return results;
-            if (obj.type === targetType) results.push(obj);
-            for (let k in obj) {
-                if (typeof obj[k] === 'object') results = results.concat(findInDatasworn(obj[k], targetType));
-            }
-            return results;
-        }
-
-        function findAssetById(id) {
-            const all = findInDatasworn(datasworn, 'asset');
-            return all.find(a => a._id === id);
-        }
-
-        // 3. THE NEURAL GUARD: Wait for both sync.js and datasworn.js
-        async function initTracker() {
-            const isSyncReady = (typeof GAS_URL !== 'undefined' && typeof loadStats === 'function');
-            const isDataReady = (typeof datasworn !== 'undefined' && datasworn !== null);
-
-            if (!isSyncReady || !isDataReady) {
-                console.log("Asset Tracker: Waiting for Core Systems...");
-                setTimeout(initTracker, 500);
-                return;
-            }
-
-            document.getElementById('sync-status').innerText = "SYSTEM ONLINE";
+        /**
+         * SEARCH ENGINE
+         * Navigates window.datasworn.collections.assets to find specific asset data.
+         */
+        function findAssetById(targetId) {
+            const collections = window.datasworn.collections?.assets;
+            if (!collections) return null;
             
-            const stats = await loadStats(charId);
-            if (stats && stats.assets) {
-                try {
-                    myAssets = JSON.parse(stats.assets);
-                } catch(e) {
-                    myAssets = []; 
+            for (const cat of Object.values(collections)) {
+                if (cat.assets && cat.assets[targetId]) {
+                    return cat.assets[targetId];
                 }
             }
-            renderAssets();
+            return null;
+        }
+
+        /**
+         * THE NEURAL PRIME INIT
+         * Synchronizes DNA and Nervous System before rendering UI.
+         */
+        async function initTracker() {
+            try {
+                // 1. Wait for DNA (datasworn.js)
+                await window.dataswornReady;
+                
+                // 2. Wait for Nervous System (sync.js)
+                const stats = await loadStats(charId);
+                
+                if (stats && stats.assets) {
+                    try { myAssets = JSON.parse(stats.assets); } catch(e) { myAssets = []; }
+                }
+
+                document.getElementById('sync-status').innerText = "SYSTEM ONLINE";
+                renderAssets();
+
+            } catch (err) {
+                console.error("Tracker Failure:", err);
+                document.getElementById('sync-status').innerText = "LINK SEVERED";
+            }
         }
 
         function renderAssets() {
@@ -135,7 +134,7 @@
             });
         }
 
-        function toggleAbility(assetIdx, abilityIdx) {
+        async function toggleAbility(assetIdx, abilityIdx) {
             const asset = myAssets[assetIdx];
             if (asset.enabled.includes(abilityIdx)) {
                 asset.enabled = asset.enabled.filter(i => i !== abilityIdx);
@@ -160,6 +159,7 @@
             document.getElementById('sync-status').innerText = "SYSTEM ONLINE";
         }
 
+        // Initialize on load
         initTracker();
     </script>
 </body>
