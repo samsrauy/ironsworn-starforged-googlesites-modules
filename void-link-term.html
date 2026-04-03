@@ -1,8 +1,8 @@
 <div id="terminal-grid">
     <div class="header-bar">
-        <h2>STARFORGED // NAV-OS</h2>
-        <div id="char-display">ID: AWAITING...</div>
-        <button onclick="toggleAssets()">MANIFEST</button>
+        <h2 style="margin:0; font-family: 'Share Tech Mono', monospace;">STARFORGED // NAV-OS</h2>
+        <div id="char-display" style="color: #bcdee7; font-family: monospace;">ID: AWAITING...</div>
+        <button onclick="toggleAssets()" style="background:#00ff9d; color:#000; border:none; padding:5px 15px; cursor:pointer; font-weight:bold;">MANIFEST</button>
     </div>
     
     <div id="frame-char" class="module-frame" style="overflow-y: auto;"></div>
@@ -11,26 +11,28 @@
 </div>
 
 <div id="asset-drawer">
-    <button onclick="toggleAssets()" style="margin: 10px; width: calc(100% - 20px);">CLOSE MANIFEST</button>
+    <button onclick="toggleAssets()" style="margin: 10px; width: calc(100% - 20px); background:#ff0055; color:#fff; border:none; padding:10px; cursor:pointer;">CLOSE MANIFEST</button>
     <div id="frame-assets" class="module-frame" style="height: calc(100% - 60px); overflow-y: auto;"></div>
 </div>
+
+<script src="js/datasworn.js"></script>
+<script src="js/sync.js"></script>
 
 <script>
     /**
      * MODULE LOADER
-     * Fetches HTML from GitHub and injects it into a DIV.
-     * Then manually executes any <script> tags found inside.
+     * Fetches HTML from GitHub and injects it into a DIV, then executes scripts.
      */
-    async function loadModule(targetId, filename) {
+    async function loadModule(targetId, path) {
         try {
-            const response = await fetch(`https://samsrauy.github.io/void-link/modules/${filename}`);
-            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-            
+            const response = await fetch(`https://samsrauy.github.io/void-link/modules/${path}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const html = await response.text();
+            
             const target = document.getElementById(targetId);
             target.innerHTML = html;
             
-            // Execute the scripts within the fragment
+            // "Revive" the scripts inside the injected HTML
             target.querySelectorAll('script').forEach(oldScript => {
                 const newScript = document.createElement('script');
                 if (oldScript.src) newScript.src = oldScript.src;
@@ -39,26 +41,29 @@
                 oldScript.remove();
             });
         } catch (err) {
-            console.error(`Failed to uplink module [${filename}]:`, err);
-            document.getElementById(targetId).innerHTML = `<div style="color:red; padding:10px;">MODULE OFFLINE: ${filename}</div>`;
+            console.error(`Failed to load module ${path}:`, err);
+            document.getElementById(targetId).innerHTML = `<div style="color:red; padding:20px;">MODULE OFFLINE: ${path}</div>`;
         }
     }
 
     async function bootTerminal() {
-        if (!window.charId) {
-            document.getElementById('terminal-grid').innerHTML = "<div style='color:red; padding:20px;'>FATAL ERROR: ID MISSING.</div>";
-            return;
-        }
+        // Set global charId from URL or host
+        const params = new URLSearchParams(window.location.search);
+        window.charId = window.charId || params.get('id') || "Unknown_Pilot";
 
         document.getElementById('char-display').innerText = `ID: ${window.charId.toUpperCase()}`;
 
-        // Inject modules natively!
+        // Inject all modules into the same scope
         await loadModule('frame-char', 'character-sheet/character-sheet.html');
         await loadModule('frame-assets', 'asset-browser/asset-browser.html');
-        // Add Map and Journal once they are ready
+        // await loadModule('frame-map', 'map/map.html');
+        // await loadModule('frame-journal', 'journal/journal.html');
     }
 
     function toggleAssets() {
         document.getElementById('asset-drawer').classList.toggle('open');
     }
+
+    // Start boot sequence
+    bootTerminal();
 </script>
