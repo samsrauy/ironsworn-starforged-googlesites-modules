@@ -6,6 +6,9 @@
  * 3. Deploy as a Web App (Execute as: Me, Who has access: Anyone with a Google Account).
  *
  */
+/**
+ * Code.gs - STARFORGED VOID-LINK CORE (Native UI Edition)
+ */
 
 // ==============================================================================
 // 1. WEB SERVER ROUTE
@@ -17,7 +20,6 @@ function doGet(e) {
   // Pass the URL ID parameter to the HTML template (if one exists)
   html.charId = e.parameter.id || '';
   
-  // THIS IS THE LINE YOU WERE MISSING
   return html.evaluate() 
     .setTitle('Starforged Void-Link Terminal')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
