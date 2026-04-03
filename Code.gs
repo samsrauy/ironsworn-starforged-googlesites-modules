@@ -1,11 +1,22 @@
 /**
  * ==============================================================================
  * PROJECT: Starforged Void-Link Sync
+ * 
  * INSTRUCTIONS: 
  * 1. Replace the entire contents of your Apps Script editor with this code.
- * 2. Set your GEMINI_KEY in Project Settings > Script Properties.
- * 3. Deploy as a Web App (New Version) whenever you make changes.
- * * SETUP FOR PLAYERS:
+ * 2. Set your GEMINI_KEY in Project Settings > Script Properties, if using Gemini
+ * 3. Deploy as a Web App or redeploy (New Version) whenever you make changes.
+ * 4. When you deploy, it will complain about and unknown script and if you trust it. THIS script is that unknown script.
+ *    And YOUR account is the one trying to access your account. Go ahead and click trust, unless you don't trust yourself.
+ * 5. When you deploy, it'll also ask you to select "Execute as". Select "Me" (i.e., you). I'll also ask "Who has access". Select "Anyone".
+ *    You'll want to do this because the project will use the Web App URL this script creates to tie everything together. BUT, since the software is designed to borrow
+ *    HTML code and JS from the repository and only uses your Google Sheet and this App Script (which is only tied to that Google Sheet) only you and whomever you give
+ *    access to it will be able to interact with it or *run* this script. But it's still a computer, who is not you.
+ * 6. If you want to delete this and not use the project, all you have to do is delete your Google Sheet that you used for this game. That's the extent of "uninstaling."
+ *    If only it was that easy to get rid of social media or crappy people. Sorry, I can't help with that!   
+ * * 
+ * ==============================================================================
+ * SETUP FOR PLAYERS:
  * - You do NOT need to manually add headers to your "Stats" tab.
  * - This script will automatically initialize the database headers on first boot.
  * - Ensure your Google Sheet is shared as "Anyone with the link can view."
