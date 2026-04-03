@@ -6,14 +6,19 @@
     <style>
         body { background: #0b0d12; color: #00ff9d; font-family: 'Exo 2', sans-serif; padding: 20px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #1a1c23; padding-bottom: 10px; }
-        select { background: #161922; border: 1px solid #00ff9d; color: #00ff9d; padding: 8px; border-radius: 4px; outline: none; cursor: pointer; }
+        select { background: #161922; border: 1px solid #00ff9d; color: #00ff9d; padding: 8px; border-radius: 4px; outline: none; cursor: pointer; text-transform: uppercase; }
         
         .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .asset-card { background: #1a1c23; border: 1px solid #454d5d; border-radius: 8px; padding: 15px; position: relative; display: flex; flex-direction: column; min-height: 350px; }
+        .asset-card { background: #1a1c23; border: 1px solid #454d5d; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; min-height: 350px; }
         .asset-card:hover { border-color: #00ff9d; box-shadow: 0 0 10px rgba(0, 255, 153, 0.1); }
         .asset-card h4 { margin: 0 0 10px 0; color: #00ff9d; text-transform: uppercase; letter-spacing: 1px; }
         .asset-type { font-size: 0.7rem; color: #ff0055; margin-bottom: 10px; font-weight: bold; }
         .ability { font-size: 0.85rem; color: #bcdee7; margin-bottom: 10px; line-height: 1.4; }
+        
+        /* Neural Link Buttons */
+        .inline-link { background: rgba(0, 255, 153, 0.1); border: none; border-bottom: 1px dashed #00ff9d; color: #00ff9d; padding: 0 2px; cursor: pointer; font-family: inherit; font-size: inherit; transition: 0.2s; }
+        .inline-link:hover { background: #00ff9d; color: #000; }
+
         .install-btn { width: 100%; background: #00ff9d; color: #000; border: none; padding: 10px; font-weight: bold; cursor: pointer; margin-top: auto; transition: 0.2s; }
         .install-btn:hover { background: #fff; transform: scale(1.02); }
     </style>
@@ -22,19 +27,30 @@
     <div class="header">
         <h3>NEURAL ASSET REPOSITORY</h3>
         <select id="category-select" onchange="renderAssets(this.value)">
-            <option>UPLINKING TO DATA CORE...</option>
+            <option>UPLINKING...</option>
         </select>
     </div>
-    <div id="asset-grid" class="asset-grid">
-        </div>
+    <div id="asset-grid" class="asset-grid"></div>
 
     <script src="../../js/sync.js"></script>
     <script src="../../js/datasworn.js"></script>
-
     <script>
-        console.log("Asset Browser: System Startup...");
+        function formatDataswornText(text) {
+            if (!text) return "";
+            return text.replace(/\[([^\]]+)\]\(id:([^)]+)\)/g, (match, name, id) => {
+                return `<button class="inline-link" onclick="handleDataswornLink('${id}', '${name.replace(/'/g, "\\'")}')">${name}</button>`;
+            });
+        }
 
-        // THE CRAWLER: Finds categories even if the schema shifts
+        async function handleDataswornLink(id, name) {
+            if (confirm(`INITIATE NEURAL ROLL: ${name.toUpperCase()}?`)) {
+                if (typeof triggerNeuralRoll === 'function') {
+                    await triggerNeuralRoll(name, 0, 0);
+                    alert(`Action transmitted to Ship's Log.`);
+                }
+            }
+        }
+
         function findInDatasworn(obj, targetType) {
             let results = [];
             if (!obj || typeof obj !== 'object') return results;
@@ -49,83 +65,44 @@
 
         function init() {
             if (typeof datasworn === 'undefined' || datasworn === null) {
-                console.warn("Asset Browser: Data Core null. Retrying...");
                 setTimeout(init, 500);
                 return;
             }
-
-            try {
-                const select = document.getElementById('category-select');
-                
-                // 1. Try Recursive Search (Future-Proof)
-                let categories = findInDatasworn(datasworn, 'asset_category');
-
-                // 2. Fallback to Direct Mapping (Current Reliability)
-                if (categories.length === 0 && datasworn.assets) {
-                    console.log("Asset Browser: Falling back to direct key mapping.");
-                    categories = Object.values(datasworn.assets);
-                }
-
-                if (categories.length === 0) {
-                    console.error("Asset Browser: No categories found.");
-                    return;
-                }
-
-                // Sort Alphabetically
-                categories.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-
-                select.innerHTML = categories.map(cat => 
-                    `<option value="${cat._id}">${(cat.name || "Unnamed").toUpperCase()}</option>`
-                ).join('');
-                
-                console.log(`Asset Browser: Loaded ${categories.length} categories.`);
-                renderAssets(categories[0]._id);
-
-            } catch (err) {
-                console.error("Asset Browser: Initialization Crash ->", err);
-            }
+            const select = document.getElementById('category-select');
+            let categories = findInDatasworn(datasworn, 'asset_category');
+            if (categories.length === 0 && datasworn.assets) categories = Object.values(datasworn.assets);
+            
+            categories.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+            select.innerHTML = categories.map(cat => `<option value="${cat._id}">${(cat.name || "Unnamed").toUpperCase()}</option>`).join('');
+            renderAssets(categories[0]._id);
         }
 
         function renderAssets(catId) {
             const grid = document.getElementById('asset-grid');
-            
-            // Search for category object
             let categories = findInDatasworn(datasworn, 'asset_category');
             if (categories.length === 0 && datasworn.assets) categories = Object.values(datasworn.assets);
-            
             const category = categories.find(c => c._id === catId);
             if (!category) return;
 
             const assetList = category.assets || category.contents || {};
-            
-            grid.innerHTML = Object.entries(assetList).map(([id, asset]) => {
-                const name = asset.name || "Unknown Asset";
-                const abilities = asset.abilities || [];
-
-                return `
+            grid.innerHTML = Object.entries(assetList).map(([id, asset]) => `
                 <div class="asset-card">
                     <div class="asset-type">${(category.name || "ASSET").toUpperCase()}</div>
-                    <h4>${name}</h4>
-                    <div class="ability"><strong>Requirement:</strong> ${asset.requirement || 'None'}</div>
-                    ${abilities.map((ab, i) => `
-                        <div class="ability" style="opacity: ${i === 0 ? 1 : 0.6}">
-                            ● ${ab.text || ab.description || "Data missing."}
-                        </div>
+                    <h4>${asset.name}</h4>
+                    <div class="ability"><strong>Requirement:</strong> ${formatDataswornText(asset.requirement) || 'None'}</div>
+                    ${(asset.abilities || []).map((ab, i) => `
+                        <div class="ability" style="opacity: ${i === 0 ? 1 : 0.6}">● ${formatDataswornText(ab.text || ab.description)}</div>
                     `).join('')}
-                    <button class="install-btn" onclick="claimAsset('${id}', '${name.replace(/'/g, "\\'")}')">INSTALL ASSET</button>
+                    <button class="install-btn" onclick="claimAsset('${id}', '${asset.name.replace(/'/g, "\\'")}')">INSTALL ASSET</button>
                 </div>
-            `}).join('');
+            `).join('');
         }
 
         async function claimAsset(id, name) {
-            if (confirm(`Install ${name} to ship systems?`)) {
-                if (typeof saveStat === 'function') {
-                    await saveStat(charId, "history_entry", `ASSET ACQUIRED: ${name}`);
-                    alert(`${name} registered to Neural Link.`);
-                }
+            if (confirm(`Install ${name}?`)) {
+                if (typeof saveStat === 'function') await saveStat(charId, "history_entry", `ASSET ACQUIRED: ${name}`);
             }
         }
-
         init();
     </script>
 </body>
