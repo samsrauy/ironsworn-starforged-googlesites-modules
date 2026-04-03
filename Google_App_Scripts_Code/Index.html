@@ -3,64 +3,81 @@
   <head>
     <base target="_top">
     <base href="https://samsrauy.github.io/void-link/">
+    <link rel="stylesheet" href="https://samsrauy.github.io/void-link/css/style.css">
     <style>
       body { background-color: #050508; color: #00ff9d; font-family: monospace; margin: 0; overflow: hidden; }
-      #starforged-terminal { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; }
+      #loading-screen { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; }
     </style>
   </head>
   <body>
-    <div id="starforged-terminal">
+    
+    <div id="loading-screen">
       <div>
         <p>Authenticating User Credentials...</p>
-        <p>Establishing Secure Link to Central Core...</p>
+        <p>Mounting UI Fragments...</p>
       </div>
     </div>
 
+    <div id="starforged-terminal" style="display: none;"></div>
+
     <script>
       const GITHUB_BASE_URL = "https://samsrauy.github.io/void-link";
-      window.charId = "<?= charId ?>"; 
       
-      if (window.charId) {
-        window.history.replaceState({}, '', '?id=' + window.charId);
+      // Establish the single source of truth for the Character ID globally
+      window.charId = "<?= charId ?>"; 
+      if (window.charId) window.history.replaceState({}, '', '?id=' + window.charId);
+
+      function getNonce() {
+          return document.currentScript ? document.currentScript.nonce : '';
       }
 
-      function loadScript(src) {
-          return new Promise((resolve, reject) => {
-              const s = document.createElement('script');
-              s.src = src;
-              s.onload = resolve;
-              s.onerror = reject;
-              document.body.appendChild(s);
-          });
+      async function injectScript(scriptPath) {
+          const response = await fetch(`${GITHUB_BASE_URL}/${scriptPath}`);
+          const code = await response.text();
+          const scriptEl = document.createElement('script');
+          scriptEl.textContent = code;
+          if (getNonce()) scriptEl.setAttribute("nonce", getNonce());
+          document.body.appendChild(scriptEl);
       }
 
-      async function initializeTerminal() {
+      async function bootSystem() {
           try {
-              // 1. Fetch and inject the pure HTML UI (CSP allows this)
+              // Fetch the raw HTML fragment and paint the canvas
               const response = await fetch(`${GITHUB_BASE_URL}/void-link-term.html`);
-              if (!response.ok) throw new Error("Could not fetch terminal blueprint.");
-              document.getElementById('starforged-terminal').innerHTML = await response.text();
+              if (!response.ok) throw new Error("Failed to load terminal layout.");
+              
+              const terminalDiv = document.getElementById('starforged-terminal');
+              terminalDiv.innerHTML = await response.text();
 
-              // 2. Load the external engines sequentially via src (CSP allows this)
-              await loadScript(`${GITHUB_BASE_URL}/js/datasworn.js`);
-              await loadScript(`${GITHUB_BASE_URL}/js/sync.js`);
+              // Revive the internal bootloader script cleanly
+              terminalDiv.querySelectorAll('script').forEach(deadScript => {
+                  const liveScript = document.createElement('script');
+                  liveScript.textContent = deadScript.textContent;
+                  if (getNonce()) liveScript.setAttribute("nonce", getNonce());
+                  document.body.appendChild(liveScript);
+                  deadScript.remove();
+              });
+
+              // Inject the heavy-lifting engines
+              await injectScript('js/datasworn.js');
+              await injectScript('js/sync.js');
+
+              // Reveal and Boot
+              document.getElementById('loading-screen').style.display = 'none';
+              terminalDiv.style.display = 'block';
               
-              // 3. Load the Terminal Logic we just separated
-              await loadScript(`${GITHUB_BASE_URL}/js/term.js`);
-              
-              // 4. Manually boot the system
               if (typeof bootTerminal === 'function') {
                   bootTerminal();
               } else {
-                  throw new Error("Terminal logic (term.js) failed to execute.");
+                  console.warn("bootTerminal function not found in the injected fragment.");
               }
 
           } catch (err) {
-              document.getElementById('starforged-terminal').innerHTML = `<p style='color:red; padding:2rem;'>CRITICAL BOOT FAILURE: ${err.message}</p>`;
+              document.getElementById('loading-screen').innerHTML = `<p style='color:red;'>CRITICAL BOOT FAILURE: ${err.message}</p>`;
           }
       }
 
-      initializeTerminal();
+      bootSystem();
     </script>
   </body>
 </html>
