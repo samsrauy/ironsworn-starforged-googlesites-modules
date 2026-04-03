@@ -30,21 +30,21 @@
         .grid-assets { grid-column: 3; grid-row: 1; }
         .grid-oracle { grid-column: 3; grid-row: 2; }
 
-        /* Menu System - Moved to Lower Right */
+        /* Menu System - BOTTOM LEFT */
         #menu-toggle {
-            position: fixed; bottom: 30px; right: 30px; z-index: 100;
-            background: #00ff9d; color: #000; border: none; padding: 12px 20px;
+            position: fixed; bottom: 20px; left: 20px; z-index: 100;
+            background: #00ff9d; color: #000; border: none; padding: 10px 20px;
             font-weight: bold; cursor: pointer; border-radius: 4px; box-shadow: 0 0 15px rgba(0,255,153,0.4);
-            letter-spacing: 1px;
+            letter-spacing: 1px; font-size: 0.8rem;
         }
         #side-menu {
-            position: fixed; top: 0; right: -500px; width: 450px; height: 100vh;
-            background: #050508; border-left: 1px solid #00ff9d; z-index: 99;
-            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column;
+            position: fixed; top: 0; left: -500px; width: 450px; height: 100vh;
+            background: #050508; border-right: 1px solid #00ff9d; z-index: 99;
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column;
         }
-        #side-menu.open { right: 0; }
+        #side-menu.open { left: 0; }
         .menu-tabs { display: flex; background: #111; border-bottom: 1px solid #333; }
-        .menu-tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-size: 0.7rem; opacity: 0.5; }
+        .menu-tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-size: 0.7rem; opacity: 0.5; color: #fff; }
         .menu-tab.active { opacity: 1; color: #00ff9d; background: rgba(0,255,153,0.05); font-weight: bold; }
         .menu-frame-container { flex-grow: 1; }
     </style>
@@ -54,7 +54,7 @@
     <div id="setup-screen">
         <div class="setup-box">
             <h1 style="letter-spacing: 5px; margin-bottom: 5px;">VOID-LINK</h1>
-            <p style="font-size: 0.6rem; opacity: 0.4; margin-bottom: 30px;">NEURAL INTERFACE TERMINAL v3.2</p>
+            <p style="font-size: 0.6rem; opacity: 0.4; margin-bottom: 30px;">NEURAL INTERFACE TERMINAL v3.3</p>
             
             <input type="text" id="sheet-input" placeholder="ENTER SPREADSHEET ID">
             <br>
@@ -75,7 +75,7 @@
             <div id="tab-brow" class="menu-tab" onclick="switchMenu('asset-browser')">ASSET BROWSER</div>
         </div>
         <div class="menu-frame-container">
-            <iframe id="frame-menu-content" src=""></iframe>
+            <iframe id="frame-menu-content"></iframe>
         </div>
     </div>
 
@@ -127,10 +127,10 @@
         function openCreator() {
             const sId = document.getElementById('sheet-input').value.trim();
             if (!sId) {
-                alert("Please enter a Spreadsheet ID first to link the creator.");
+                alert("Please enter a Spreadsheet ID first to link the identity bank.");
                 return;
             }
-            // Opens the character creation utility in a new tab
+            // Opens character sheet in creation mode
             window.open(`modules/character-sheet/index.html?sheet=${sId}&mode=create`, '_blank');
         }
 
