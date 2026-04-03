@@ -5,25 +5,38 @@
     <link rel="stylesheet" href="../../css/style.css">
     <style>
         body { background: #0b0d12; color: #bcdee7; font-family: 'Exo 2', sans-serif; padding: 15px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #1a1c23; padding-bottom: 5px; }
         .asset-list { display: flex; flex-direction: column; gap: 15px; }
+        
         .asset-card { 
             background: #161922; border: 1px solid #454d5d; border-left: 4px solid #00ff9d; 
-            padding: 15px; border-radius: 4px; position: relative;
+            padding: 15px; border-radius: 4px; position: relative; transition: 0.2s;
         }
-        .asset-name { color: #00ff9d; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; display: block; }
-        .ability-row { display: flex; gap: 10px; margin-top: 8px; font-size: 0.8rem; align-items: flex-start; }
+        .asset-card:hover { border-color: #00ff9d; background: #1a1c23; }
+        
+        .asset-name { color: #00ff9d; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; display: block; letter-spacing: 1px; }
+        
+        .ability-row { display: flex; gap: 12px; margin-top: 10px; font-size: 0.85rem; align-items: flex-start; line-height: 1.4; }
         .ability-check { 
-            width: 14px; height: 14px; border: 1px solid #00ff9d; 
-            cursor: pointer; flex-shrink: 0; margin-top: 3px;
+            width: 16px; height: 16px; border: 1px solid #00ff9d; 
+            cursor: pointer; flex-shrink: 0; margin-top: 2px; transition: 0.2s;
         }
-        .ability-check.active { background: #00ff9d; box-shadow: 0 0 5px #00ff9d; }
-        .delete-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #ff0055; cursor: pointer; font-size: 0.8rem; }
+        .ability-check.active { background: #00ff9d; box-shadow: 0 0 8px #00ff9d; }
+        
+        /* Neural Link Styling for Asset Text */
+        .inline-link { background: rgba(0, 255, 153, 0.1); border: none; border-bottom: 1px dashed #00ff9d; color: #00ff9d; cursor: pointer; padding: 0 2px; font-family: inherit; }
+        .inline-link:hover { background: #00ff9d; color: #000; }
+
+        .delete-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #ff0055; cursor: pointer; font-size: 0.8rem; opacity: 0.5; }
+        .delete-btn:hover { opacity: 1; }
+        
+        .status-msg { font-size: 0.6rem; color: #454d5d; text-transform: uppercase; }
     </style>
 </head>
 <body>
-    <div class="header" style="display:flex; justify-content:space-between; margin-bottom:15px;">
-        <span style="font-size:0.7rem; letter-spacing:2px;">ACTIVE ASSETS</span>
-        <button class="save-btn" onclick="syncToCloud()" style="font-size:0.6rem; padding:2px 8px;">MANUAL SYNC</button>
+    <div class="header">
+        <span style="font-size:0.7rem; letter-spacing:2px;">ACTIVE ASSET MANIFEST</span>
+        <span id="sync-status" class="status-msg">UPLINKING...</span>
     </div>
     
     <div id="active-assets" class="asset-list">
@@ -32,39 +45,61 @@
     <script src="../../js/sync.js"></script>
     <script src="../../js/datasworn.js"></script>
     <script>
-        let myAssets = []; // Array of objects: { id: "datasworn_id", enabled: [0, 2] }
+        let myAssets = [];
 
-        // Schema-compliant recursive finder
-        function findAssetById(id) {
-            if (typeof datasworn === 'undefined') return null;
-            const allAssets = findInDatasworn(datasworn.assets, 'asset');
-            return allAssets.find(a => a._id === id);
+        // 1. Text Formatter (The Neural Link Engine)
+        function formatAssetDescription(text) {
+            if (!text) return "";
+            return text.replace(/\[([^\]]+)\]\(id:([^)]+)\)/g, (match, name, id) => {
+                return `<button class="inline-link" onclick="handleAssetRoll('${id}', '${name.replace(/'/g, "\\'")}')">${name}</button>`;
+            });
         }
 
+        async function handleAssetRoll(id, name) {
+            if (confirm(`INITIATE ROLL VIA ASSET: ${name.toUpperCase()}?`)) {
+                if (typeof triggerNeuralRoll === 'function') {
+                    // Logic: Search character stats to find the right bonus, or default to 0
+                    await triggerNeuralRoll(name, 0, 0);
+                    alert("Roll logged to Archive.");
+                }
+            }
+        }
+
+        // 2. Schema-compliant recursive finder
         function findInDatasworn(obj, targetType) {
             let results = [];
             if (!obj || typeof obj !== 'object') return results;
             if (obj.type === targetType) results.push(obj);
-            const branches = ['collections', 'contents', 'assets', 'categories'];
-            for (const key of branches) {
-                if (obj[key]) {
-                    for (const childKey in obj[key]) {
-                        results = results.concat(findInDatasworn(obj[key][childKey], targetType));
-                    }
-                }
+            for (let k in obj) {
+                if (typeof obj[k] === 'object') results = results.concat(findInDatasworn(obj[k], targetType));
             }
             return results;
         }
 
+        function findAssetById(id) {
+            const all = findInDatasworn(datasworn, 'asset');
+            return all.find(a => a._id === id);
+        }
+
+        // 3. THE NEURAL GUARD: Wait for both sync.js and datasworn.js
         async function initTracker() {
-            if (!GAS_URL) { setTimeout(initTracker, 500); return; }
+            const isSyncReady = (typeof GAS_URL !== 'undefined' && typeof loadStats === 'function');
+            const isDataReady = (typeof datasworn !== 'undefined' && datasworn !== null);
+
+            if (!isSyncReady || !isDataReady) {
+                console.log("Asset Tracker: Waiting for Core Systems...");
+                setTimeout(initTracker, 500);
+                return;
+            }
+
+            document.getElementById('sync-status').innerText = "SYSTEM ONLINE";
             
             const stats = await loadStats(charId);
             if (stats && stats.assets) {
                 try {
                     myAssets = JSON.parse(stats.assets);
                 } catch(e) {
-                    myAssets = []; // Fallback for legacy text data
+                    myAssets = []; 
                 }
             }
             renderAssets();
@@ -74,6 +109,11 @@
             const container = document.getElementById('active-assets');
             container.innerHTML = "";
 
+            if (myAssets.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:40px; color:#454d5d; font-size:0.8rem;">NO ASSETS INSTALLED</div>`;
+                return;
+            }
+
             myAssets.forEach((entry, index) => {
                 const data = findAssetById(entry.id);
                 if (!data) return;
@@ -81,13 +121,13 @@
                 const card = document.createElement('div');
                 card.className = 'asset-card';
                 card.innerHTML = `
-                    <button class="delete-btn" onclick="removeAsset(${index})">✕</button>
+                    <button class="delete-btn" onclick="removeAsset(${index})">DECOMMISSION</button>
                     <span class="asset-name">${data.name}</span>
                     ${data.abilities.map((ab, i) => `
                         <div class="ability-row">
                             <div class="ability-check ${entry.enabled.includes(i) ? 'active' : ''}" 
                                  onclick="toggleAbility(${index}, ${i})"></div>
-                            <span>${ab.text}</span>
+                            <span>${formatAssetDescription(ab.text || ab.description)}</span>
                         </div>
                     `).join('')}
                 `;
@@ -107,7 +147,7 @@
         }
 
         async function removeAsset(index) {
-            if (confirm("Decommission this asset?")) {
+            if (confirm("Permanently delete this asset from your manifest?")) {
                 myAssets.splice(index, 1);
                 renderAssets();
                 syncToCloud();
@@ -115,8 +155,9 @@
         }
 
         async function syncToCloud() {
+            document.getElementById('sync-status').innerText = "SYNCING...";
             await saveStat(charId, "assets", JSON.stringify(myAssets));
-            console.log("Assets synchronized to neural link.");
+            document.getElementById('sync-status').innerText = "SYSTEM ONLINE";
         }
 
         initTracker();
