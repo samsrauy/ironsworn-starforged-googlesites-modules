@@ -1,81 +1,48 @@
-# Readme
+# Starforged Void-Link Terminal
 
-## Void-Link, because it's really a better name then what I called the repo. (Sorry about that)
-Current Version: 2.0 (Self-Discovering Architecture)
-Using the instructions, it basically uses my repo and [rsek's datasworn](https://github.com/rsek/datasworn) repo as a static game ready Virtual TTRPG engine for [Shawn Tomkin's amazing series of games.](https://tomkinpress.com/)
+A synchronized, multiplayer-ready character and campaign manager for Ironsworn: Starforged. 
 
-Todo: Probably change the name of the repo and all of the hard coded stuff in the code that refers to the repo.
+This project utilizes a **Hybrid CDN Architecture** to bypass CORS restrictions, provide secure Google Account authentication, and seamlessly sync data directly to a Google Sheet and Google Doc.
 
-### System Overview
-Void-Link is a modular TTRPG interface. It decouples data (Datasworn), storage (Google Sheets), and logic (Google Apps Script) to create a persistent, platform-agnostic gaming terminal.
-<br><br>
->This means, you just need a Google Account, a Google Sheet named whatever you want and shared per the permissions below, Google Sites (to place iframes/modules), the ability to add an App Script (under "Extensions" in Google Sheet), and an active internet connection (of course). Nothing else. No installing. No money. No problem (or potentially a few problems.)
-<br><br>
-**Quick note about access and permissions:**
-To ensure the Navigation Console can reach the Sector Database (Google Sheets), apply these settings:
+## 🏗️ Architecture
 
-- Spreadsheet: Set sharing to "Anyone with the link" as Viewer. This allows the UI to discover your API endpoint.
+To achieve a verified multiplayer environment without browser security blocking cross-origin requests, this app splits hosting duties:
 
-- Script Deployment: When deploying the Web App, set "Execute as" to Me and "Who has access" to Anyone.
-  - If you ever change the API URL in your Settings tab, make sure there are no spaces or quote marks around it. It should be the raw ```https://script.google.com/.../exec``` link.
+1. **Google Apps Script (The Bouncer & Database):** Google acts as the secure host. When players visit the Google Web App URL, they are forced to log in via their Google Account. The Apps Script then serves a lightweight shell (`Index.html`).
+2. **GitHub Pages (The Blueprints):** The shell running on Google uses `fetch()` to dynamically inject the HTML, CSS, and JS (like Datasworn) directly from this GitHub repository. 
+3. **`google.script.run` (The Data Core):** Because the front-end runs natively inside Google's authenticated environment, `sync.js` utilizes Google's native API (`google.script.run`) to read and write to the Google Sheet with zero CORS errors, actively tracking which player made which roll.
 
-- *Privacy Note: Using "Anyone" does not make your sheet searchable on Google; it simply means the "Void-Link" interface can talk to the database.*
+## 🚀 Setup Instructions
 
-### 🧩 The Component Stack
+### Part 1: GitHub Configuration
+1. Fork or clone this repository.
+2. Ensure GitHub Pages is enabled for your repository (Settings > Pages).
+3. Take note of your GitHub Pages URL (e.g., `https://username.github.io/repo/`).
 
-**The Anchor (Google Sheet):**
+### Part 2: Database Configuration (Google Drive)
+1. Create a new **Google Sheet**. Name the first tab `Settings` and the second tab `Stat`. 
+2. Create a new **Google Doc** (this will be the campaign log).
+3. On the `Settings` tab of the Sheet, paste the Document ID of your Google Doc into cell **B3**. *(The ID is the long string of letters/numbers in the Doc's URL).*
 
->Google Sheet is the brain of the whole system. For the Auto-Discovery and Sync systems to work without requiring every player to log into a Google Account, you need a specific, two-part permission setup.
+### Part 3: The Google Apps Script Server
+1. In your Google Sheet, go to **Extensions > Apps Script**.
+2. Replace `Code.gs` with the backend code provided in the repository.
+3. Click the `+` next to Files, select **HTML**, and name it exactly `Index`.
+4. Paste the HTML shell code. **Crucial:** Update `YOUR_GITHUB_USERNAME` and `YOUR_REPO_NAME` inside `Index.html` to point to your live GitHub Pages site.
+5. Click **Deploy > New Deployment**.
+   * Type: **Web App**
+   * Execute as: **Me**
+   * Who has access: **Anyone with a Google Account**
+6. Copy the resulting **Web App URL**. 
 
-Since your script uses ```no-cors``` and the "Discovery" logic fetches the ```Settings``` tab as a CSV, the Google Sheet must have the following permissions:
+### Part 4: Connecting the Terminals
+The Web App URL you just copied is your new master game link. Do not share the GitHub link with your players.
 
-- The Sheet to be accessible by the app without a private handshake.
-  - Click the Share button (top right).
-  - Under "General access," change "Restricted" to "Anyone with the link".
-  - Set the role to "Viewer".
+To log in as a specific character, simply append `?id=CharacterName` to the end of the Google Web App URL. 
+*Example:* `https://script.google.com/macros/s/xyz/exec?id=Fallon`
 
-**Why Viewer?**
-The "Web App" (the code in Code.gs) runs as "Me" (you). Since you own the sheet, the script has full edit rights. The "Viewer" permission for the public just allows the sync.js "Discovery" logic to read the api_url from your Settings tab.
-
-#### The Google Sheet itself needs
-|Stats Tab: Rows of character data   |
-|------------------------------------|
-|<img width="1348" height="305" alt="image" src="https://github.com/user-attachments/assets/6cacd9a4-9c97-412b-bdf4-bef8117ba772" />|
-
-*Note: You can create a character by manually entering a character name in Column A. When you put the iframes into a master index.html file for your game, the character sheet will automatically generate default entries in the other fields.*
-<br><br>
-|Settings Tab: Contains api_url (B1) and game_type (B2)|
-|------------------------------------------------------|
-|<img width="804" height="305" alt="image" src="https://github.com/user-attachments/assets/32dd0c2e-6c45-46e0-aaed-2fdf3f938fee" />|
-
-**The Brain (Code.gs): A GAS Web App.**
-
->The [Code.gs](https://github.com/samsrauy/ironsworn-starforged-googlesites-modules/blob/main/Google_Apps_Script) is hopefuly well commented for your use. Bascially it helps you create the only thing you need that is unique to your game play (other than the Google Sheet), the Web App URL.
-
-- GET: Returns JSON of character stats or Gemini Oracle text.
-
-- POST: Updates stats. Appends history_entry to the history JSON array server-side.
-
-**The Header (datasworn.js):**
-Global config. Defines the Starforged/Ironsworn JSON source and shared range-finding logic (row.floor to row.ceiling).
-
-**The Nervous System (sync.js):**
-
-- Auto-Discovery: If no api param is found, it fetches the Settings tab from the sheet ID to find the Web App URL.
-
-- Uplink: Provides saveStat() and loadStats().
-
-> [!NOTE]
-> ## "Yeah, yeah,yeah. Stacks, Google Sites... blah, blah, blah. Nice. Can I just play your darn game?" <br>
-> ## Um... rude. But yes. Please go here. https://samsrauy.github.io/ironsworn-starforged-googlesites-modules/index.html
-
-## Recovery Procedure
-The key to this system is the Code.gs, which generates an API Web App URL and your character name. Because the Google Sheet will always be human readable (and editable) you have a cloudbased game save as a decentralized-ish Virtual Table Top for the Shawn Tomkin series of TTRPGs.
-
-Step 1: Open your Google Sheet.
-
-Step 2: Ensure the Settings tab has your latest Web App URL in Cell B1.
-
-Step 3: Ensure your Google Site embed link includes ?sheet=YOUR_SPREADSHEET_ID.
-
-This makes the "human" side of the tech support almost non-existent! Ready to apply the Auto-Discovery code to your sync.js now, or shall we look at the next module?
+## 📁 File Structure
+* `/css`: Stylesheets injected into the Google shell.
+* `/js/sync.js`: The neural link adapter using `google.script.run`.
+* `/js/datasworn.js`: External data ruleset.
+* `/modules`: Specific character sheet, map, and journal UI components.
