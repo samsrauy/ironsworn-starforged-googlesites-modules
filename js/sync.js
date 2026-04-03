@@ -73,10 +73,22 @@ async function triggerNeuralRoll(moveName, statValue = 0, adds = 0) {
     if (actionScore > challenge1 && actionScore > challenge2) result = "STRONG HIT";
     else if (actionScore > challenge1 || actionScore > challenge2) result = "WEAK HIT";
 
-    const logEntry = `ROLL: ${moveName} | Result: ${result} (${actionScore} vs ${challenge1}, ${challenge2})`;
+    const isMatch = (challenge1 === challenge2);
+    const finalResult = result + (isMatch ? " (MATCH!)" : "");
+    const details = `[${d6}] + ${statValue}${adds ? ' + '+adds : ''} vs [${challenge1}, ${challenge2}]`;
+    
+    const logEntry = `ROLL: ${moveName} | Result: ${finalResult} (${details})`;
     
     console.log(`Sync: Logging ${logEntry}`);
     
-    // This uses your existing saveStat function to post to the 'history_entry' column
-    return await saveStat(charId, "history_entry", logEntry);
+    // 1. Trigger the background uplink to Google Sheets
+    // We don't 'return' this because saveStat doesn't return the roll data
+    await saveStat(charId, "history_entry", logEntry);
+
+    // 2. Return the data object so the UI (Character Sheet/Asset Browser) can display it
+    return {
+        result: finalResult,
+        details: details,
+        score: actionScore
+    };
 }
