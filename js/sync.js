@@ -1,10 +1,13 @@
 /**
  * js/sync.js - THE CORE ENGINE
+ * Full API restored with async awareness for Datasworn.
  */
 const params = new URLSearchParams(window.location.search);
 const sheetId = params.get('sheet');
 const charId = params.get('id');
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwN24ooemboCTKWLdL4KxDyb7pyh4JCZgkfTglICcHVfq6FQVE7Cp6JcOF5KSZ_Maj2Kw/exec"; 
+
+// --- CORE UTILITIES ---
 
 // THE DICE ENGINE: Action Roll (1d6 + stat + adds vs 2d10)
 function rollDice(statValue = 0, adds = 0) {
@@ -23,12 +26,11 @@ function rollDice(statValue = 0, adds = 0) {
     return {
         result: result + (isMatch ? " (MATCH!)" : ""),
         score: actionScore,
-        details: `[${actionDie}] + ${statValue}${adds ? ' + '+adds : ''} vs [${challenge1}, ${challenge2}]`,
-        isMatch: isMatch
+        details: `[${actionDie}] + ${statValue}${adds ? ' + '+adds : ''} vs [${challenge1}, ${challenge2}]`
     };
 }
 
-// THE PROGRESS ROLL: (Progress Score vs 2d10)
+// PROGRESS ROLL: 2d10 vs Progress Score
 function rollProgress(progressScore) {
     const challenge1 = Math.floor(Math.random() * 10) + 1;
     const challenge2 = Math.floor(Math.random() * 10) + 1;
@@ -37,22 +39,21 @@ function rollProgress(progressScore) {
     if (progressScore > challenge1 && progressScore > challenge2) result = "STRONG HIT";
     else if (progressScore > challenge1 || progressScore > challenge2) result = "WEAK HIT";
     
+    const isMatch = (challenge1 === challenge2);
+    
     return {
-        result: result + (challenge1 === challenge2 ? " (MATCH!)" : ""),
-        details: `Progress [${progressScore}] vs [${challenge1}, ${challenge2}]`
+        result: result + (isMatch ? " (MATCH!)" : ""),
+        score: progressScore,
+        details: `${progressScore} vs [${challenge1}, ${challenge2}]`
     };
 }
 
-// PERSISTENCE LAYER
-async function saveStat(id, stat, value) {
+// --- DATA UPLINK (GOOGLE SHEETS) ---
+
+async function saveStat(id, key, value) {
     try {
-        await fetch(GAS_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify({ id, stat, value })
-        });
-        console.log(`Uplink: ${stat} synchronized.`);
-    } catch (e) { console.error("Link Severed:", e); }
+        await fetch(`${GAS_URL}?id=${id}&key=${key}&value=${encodeURIComponent(value)}`, { method: 'POST' });
+    } catch (e) { console.error("Sync Error: Uplink Severed:", e); }
 }
 
 async function loadStats(id) {
@@ -62,8 +63,15 @@ async function loadStats(id) {
     } catch (e) { return null; }
 }
 
-// Triggers a 2d10 + 1d6 + Stat roll and logs it to the sheet.
+// --- NEURAL INTERFACE (MOVE LOGGING) ---
+
+// Refactored: Now waits for Datasworn to ensure any move-lookups don't crash the system
 async function triggerNeuralRoll(moveName, statValue = 0, adds = 0) {
+    // Ensure the data core is online before proceeding
+    if (window.dataswornReady) {
+        await window.dataswornReady;
+    }
+
     const d6 = Math.floor(Math.random() * 6) + 1;
     const challenge1 = Math.floor(Math.random() * 10) + 1;
     const challenge2 = Math.floor(Math.random() * 10) + 1;
@@ -81,11 +89,9 @@ async function triggerNeuralRoll(moveName, statValue = 0, adds = 0) {
     
     console.log(`Sync: Logging ${logEntry}`);
     
-    // 1. Trigger the background uplink to Google Sheets
-    // We don't 'return' this because saveStat doesn't return the roll data
-    await saveStat(charId, "history_entry", logEntry);
+    // Asynchronous background save
+    saveStat(charId, "history_entry", logEntry);
 
-    // 2. Return the data object so the UI (Character Sheet/Asset Browser) can display it
     return {
         result: finalResult,
         details: details,
