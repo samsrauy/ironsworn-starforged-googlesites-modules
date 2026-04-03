@@ -1,58 +1,40 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>STARFORGED // VOID-LINK TERMINAL</title>
-    <link rel="stylesheet" href="css/style.css">
-    <style>
-        body, html { margin: 0; padding: 0; height: 100%; background: #050508; color: #00ff9d; font-family: 'Exo 2', sans-serif; overflow: hidden; }
-        
-        #terminal-grid {
-            display: grid;
-            grid-template-columns: 350px 1fr 400px;
-            grid-template-rows: 60px 1fr;
-            height: 100vh;
-            gap: 2px;
-            background: #1a1c23;
-        }
-
-        .header-bar { 
-            grid-column: 1 / -1; background: #0b0d12; 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 0 20px; border-bottom: 1px solid #00ff9d;
-        }
-
-        .module-frame { background: #050508; border: none; width: 100%; height: 100%; }
-
-        #asset-drawer {
-            position: fixed; top: 0; right: -450px; width: 450px; height: 100%;
-            background: #0b0d12; border-left: 1px solid #00ff9d;
-            transition: right 0.3s ease; z-index: 1000;
-        }
-        #asset-drawer.open { right: 0; }
-        .btn-hex { background: #161922; color: #00ff9d; border: 1px solid #00ff9d; padding: 5px 15px; cursor: pointer; font-family: 'Share Tech Mono'; }
-        .btn-hex:hover { background: #00ff9d; color: #000; }
-    </style>
-</head>
-<body>
-    <div id="terminal-grid">
-        <div class="header-bar">
-            <span style="font-family: 'Share Tech Mono'; font-size: 1.2rem; letter-spacing: 2px;">VOID-LINK TERMINAL v1.0</span>
-            <span id="char-display" style="font-weight: bold; color: #fff;">ID: CONNECTING...</span>
-            <button class="btn-hex" onclick="toggleAssets()">ASSET MANIFEST</button>
-        </div>
-
-        <iframe id="frame-char" class="module-frame"></iframe>
-        <iframe id="frame-map" class="module-frame"></iframe>
-        <iframe id="frame-journal" class="module-frame"></iframe>
+<div id="terminal-grid">
+    <div class="header-bar">
+        <h2>STARFORGED // NAV-OS</h2>
+        <div id="char-display">ID: AWAITING...</div>
+        <button onclick="toggleAssets()">MANIFEST</button>
     </div>
+    
+    <iframe id="frame-char" class="module-frame" src=""></iframe>
+    <iframe id="frame-map" class="module-frame" src=""></iframe>
+    <iframe id="frame-journal" class="module-frame" src=""></iframe>
+</div>
 
-    <div id="asset-drawer">
-        <div style="padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1a1c23;">
-            <span style="font-family: 'Share Tech Mono';">NEURAL ASSET LINK</span>
-            <button class="btn-hex" onclick="toggleAssets()">CLOSE [X]</button>
-        </div>
-        <iframe id="frame-assets" class="module-frame" style="height: calc(100% - 70px);"></iframe>
-    </div>
-</body>
-</html>
+<div id="asset-drawer">
+    <button onclick="toggleAssets()" style="margin: 10px; width: calc(100% - 20px);">CLOSE MANIFEST</button>
+    <iframe id="frame-assets" class="module-frame" src="" style="height: calc(100% - 60px);"></iframe>
+</div>
+
+<script>
+    // Boot function relies on the global window.charId provided by the host
+    function bootTerminal() {
+        if (!window.charId) {
+            console.error("Critical Failure: No Character ID found.");
+            document.getElementById('terminal-grid').innerHTML = "<div style='color:red; padding:20px;'>FATAL ERROR: CHARACTER ID MISSING. ACCESS DENIED.</div>";
+            return;
+        }
+
+        document.getElementById('char-display').innerText = `ID: ${window.charId.toUpperCase()}`;
+
+        // Route the iframes
+        const query = `?id=${encodeURIComponent(window.charId)}`;
+        document.getElementById('frame-char').src = `modules/character-sheet/character-sheet.html${query}`;
+        document.getElementById('frame-map').src = `modules/map/map.html${query}`;
+        document.getElementById('frame-journal').src = `modules/journal/journal.html${query}`;
+        document.getElementById('frame-assets').src = `modules/asset-browser/asset-browser.html${query}`;
+    }
+
+    function toggleAssets() {
+        document.getElementById('asset-drawer').classList.toggle('open');
+    }
+</script>
