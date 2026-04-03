@@ -2,274 +2,162 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../../css/style.css">
     <style>
-        body { background: #050508; color: #e0e0e0; font-family: 'Courier New', monospace; padding: 10px; }
-        .sheet-grid { display: flex; flex-direction: column; gap: 12px; max-width: 600px; margin: auto; }
-        .section-header { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 2px; opacity: 0.5; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px; color: var(--accent); }
+        body { background: #0b0d12; color: #bcdee7; font-family: 'Exo 2', sans-serif; padding: 20px; overflow-y: auto; }
+        .section-title { font-size: 0.8rem; letter-spacing: 3px; color: #00ff9d; border-bottom: 1px solid #00ff9d; padding-bottom: 5px; margin: 20px 0 10px 0; text-transform: uppercase; }
         
-        /* Attributes */
-        .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; text-align: center; }
-        .stat-box { border: 1px solid #333; border-radius: 4px; padding: 5px; background: rgba(255,255,255,0.03); cursor: pointer; transition: 0.2s; }
-        .stat-box:hover { border-color: var(--accent); background: rgba(0, 255, 153, 0.05); }
-        .stat-label { font-size: 0.5rem; opacity: 0.7; font-weight: bold; pointer-events: none; }
-        .stat-input { background: none; border: none; color: var(--accent); font-size: 1.1rem; font-weight: bold; width: 100%; text-align: center; font-family: 'Courier New', monospace; outline: none; }
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .stat-box { background: #161922; border: 1px solid #454d5d; padding: 10px; text-align: center; border-radius: 4px; }
+        .stat-val { display: block; font-size: 1.5rem; color: #00ff9d; font-weight: bold; }
+        .stat-label { font-size: 0.6rem; text-transform: uppercase; opacity: 0.7; }
 
-        /* Vitals */
-        .vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .vital-item { border: 1px solid #333; padding: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; background: #000; }
-        .vital-info { display: flex; flex-direction: column; }
-        .vital-name { font-size: 0.55rem; text-transform: uppercase; opacity: 0.6; }
-        .vital-val { font-size: 1.3rem; font-weight: bold; color: var(--accent); }
-        .vital-btns button { width: 24px; height: 24px; cursor: pointer; background: #111; border: 1px solid #444; color: white; border-radius: 3px; font-size: 1rem; }
-        .vital-btns button:hover { border-color: var(--accent); color: var(--accent); }
-
-        /* Momentum */
-        .momentum-card { grid-column: span 2; border: 1px solid var(--accent); padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,255,153, 0.05); }
-        .burn-btn { background: #f87171; color: black; border: none; padding: 6px 12px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 0.65rem; text-transform: uppercase; }
-        .burn-btn:disabled { opacity: 0.2; cursor: not-allowed; filter: grayscale(1); }
-
-        /* Tracks */
-        .track-card { border: 1px solid #333; background: #0a0a0c; padding: 10px; border-radius: 6px; margin-bottom: 8px; }
-        .track-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .progress-bar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
-        .box { height: 18px; border: 1px solid #444; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; border-radius: 2px; }
-        .box.filled { background: var(--accent); color: black; font-weight: bold; border-color: var(--accent); }
+        /* Progress Tracks */
+        .track-container { background: rgba(22, 25, 34, 0.6); padding: 15px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #454d5d; }
+        .track-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .rank-badge { font-size: 0.6rem; padding: 2px 6px; border: 1px solid #00ff9d; color: #00ff9d; text-transform: uppercase; border-radius: 3px; }
         
-        .clock-grid { display: flex; gap: 8px; justify-content: center; padding: 5px 0; }
-        .clock-seg { width: 26px; height: 26px; border: 2px solid #f87171; border-radius: 50%; cursor: pointer; }
-        .clock-seg.active { background: #f87171; box-shadow: 0 0 10px rgba(248, 113, 113, 0.4); }
+        .progress-bar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-bottom: 10px; }
+        .box { height: 25px; border: 1px solid #454d5d; position: relative; background: #050508; }
+        .tick { position: absolute; background: #00ff9d; box-shadow: 0 0 5px rgba(0,255,153,0.5); }
+        .tick-1 { top: 4px; left: 4px; width: 6px; height: 6px; }
+        .tick-2 { top: 4px; right: 4px; width: 6px; height: 6px; }
+        .tick-3 { bottom: 4px; left: 4px; width: 6px; height: 6px; }
+        .tick-4 { bottom: 4px; right: 4px; width: 6px; height: 6px; }
 
-        .impacts-flex { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
-        .pill { padding: 4px 10px; border: 1px solid #444; border-radius: 15px; font-size: 0.6rem; cursor: pointer; opacity: 0.4; transition: 0.3s; }
-        .pill.active { opacity: 1; background: rgba(248, 113, 113, 0.2); border-color: #f87171; color: #f87171; }
-
-        .add-btn { width: 100%; padding: 8px; border: 1px dashed #444; background: none; color: #888; cursor: pointer; font-size: 0.65rem; border-radius: 4px; }
-        .del-link { font-size: 0.8rem; color: #f87171; background: none; border: none; cursor: pointer; opacity: 0.5; }
-
-        /* Roll Overlay */
-        #roll-result-area { 
-            position: fixed; bottom: 10px; right: 10px; left: 10px; 
-            background: #000; border: 1px solid var(--accent); 
-            padding: 10px; border-radius: 4px; display: none; 
-            z-index: 100; box-shadow: 0 0 20px rgba(0,0,0,0.8);
-        }
+        .btn-group { display: flex; gap: 10px; }
+        .mark-btn { background: #00ff9d; color: #000; border: none; padding: 5px 10px; font-size: 0.7rem; font-weight: bold; cursor: pointer; border-radius: 2px; }
+        .mark-btn:hover { background: #fff; }
+        
+        select.rank-select { background: #000; color: #00ff9d; border: 1px solid #454d5d; font-size: 0.7rem; }
     </style>
 </head>
 <body>
 
-    <div id="sheet-ui" class="sheet-grid">
-        <section>
-            <div class="section-header">Attributes</div>
-            <div class="stats-row">
-                <div class="stat-box" onclick="actionRoll('edge')"><div class="stat-label">EDGE</div><input type="number" id="stat-edge" class="stat-input" onclick="event.stopPropagation()" onchange="updatePC('edge', this.value)"></div>
-                <div class="stat-box" onclick="actionRoll('heart')"><div class="stat-label">HEART</div><input type="number" id="stat-heart" class="stat-input" onclick="event.stopPropagation()" onchange="updatePC('heart', this.value)"></div>
-                <div class="stat-box" onclick="actionRoll('iron')"><div class="stat-label">IRON</div><input type="number" id="stat-iron" class="stat-input" onclick="event.stopPropagation()" onchange="updatePC('iron', this.value)"></div>
-                <div class="stat-box" onclick="actionRoll('shadow')"><div class="stat-label">SHADOW</div><input type="number" id="stat-shadow" class="stat-input" onclick="event.stopPropagation()" onchange="updatePC('shadow', this.value)"></div>
-                <div class="stat-box" onclick="actionRoll('wits')"><div class="stat-label">WITS</div><input type="number" id="stat-wits" class="stat-input" onclick="event.stopPropagation()" onchange="updatePC('wits', this.value)"></div>
-            </div>
-        </section>
+    <h2 id="display-name" style="color:#00ff9d; margin-bottom:20px;">VOID-LINK: LOADING...</h2>
 
-        <section>
-            <div class="vitals-grid">
-                <div class="vital-item">
-                    <div class="vital-info"><span class="vital-name">Health</span><span id="health-val" class="vital-val">5</span></div>
-                    <div class="vital-btns"><button onclick="changeVital('health', -1)">-</button><button onclick="changeVital('health', 1)">+</button></div>
-                </div>
-                <div class="vital-item">
-                    <div class="vital-info"><span class="vital-name">Spirit</span><span id="spirit-val" class="vital-val">5</span></div>
-                    <div class="vital-btns"><button onclick="changeVital('spirit', -1)">-</button><button onclick="changeVital('spirit', 1)">+</button></div>
-                </div>
-                <div class="vital-item">
-                    <div class="vital-info"><span class="vital-name">Supply</span><span id="supply-val" class="vital-val">5</span></div>
-                    <div class="vital-btns"><button onclick="changeVital('supply', -1)">-</button><button onclick="changeVital('supply', 1)">+</button></div>
-                </div>
-                <div class="vital-item">
-                    <div class="vital-info"><span class="vital-name">XP</span><span id="xp-val" class="vital-val">0</span></div>
-                    <div class="vital-btns"><button onclick="changeVital('xp', -1)">-</button><button onclick="changeVital('xp', 1)">+</button></div>
-                </div>
-                
-                <div class="momentum-card">
-                    <div class="vital-info">
-                        <span class="vital-name">Momentum</span>
-                        <span id="momentum-val" class="vital-val">+2</span>
-                        <span id="m-caps" style="font-size:0.45rem; opacity:0.5;">MAX +10 / RESET +2</span>
-                    </div>
-                    <button id="burn-btn" class="burn-btn" onclick="burnMomentum()">Burn</button>
-                </div>
-            </div>
-        </section>
-
-        <section>
-            <div class="section-header">Impacts</div>
-            <div class="impacts-flex">
-                <div class="pill" id="p-wounded" onclick="toggleImpact('wounded')">Wounded</div>
-                <div class="pill" id="p-shaken" onclick="toggleImpact('shaken')">Shaken</div>
-                <div class="pill" id="p-unprepared" onclick="toggleImpact('unprepared')">Unprepared</div>
-                <div class="pill" id="p-encumbered" onclick="toggleImpact('encumbered')">Encumbered</div>
-            </div>
-        </section>
-
-        <section>
-            <div class="section-header">Objectives & Clocks</div>
-            <div id="track-list"></div>
-            <button class="add-btn" onclick="addTrackPrompt()">+ NEW OBJECTIVE / CLOCK</button>
-        </section>
+    <div class="stats-grid">
+        <div class="stat-box"><span class="stat-label">Edge</span><span class="stat-val" id="stat-edge">0</span></div>
+        <div class="stat-box"><span class="stat-label">Heart</span><span class="stat-val" id="stat-heart">0</span></div>
+        <div class="stat-box"><span class="stat-label">Iron</span><span class="stat-val" id="stat-iron">0</span></div>
+        <div class="stat-box"><span class="stat-label">Shadow</span><span class="stat-val" id="stat-shadow">0</span></div>
+        <div class="stat-box"><span class="stat-label">Wits</span><span class="stat-val" id="stat-wits">0</span></div>
     </div>
 
-    <div id="roll-result-area" onclick="this.style.display='none'">
-        <div id="roll-text" style="font-size: 0.8rem;"></div>
-        <div style="font-size: 0.5rem; opacity: 0.5; margin-top: 5px;">(Click to dismiss)</div>
-    </div>
+    <div class="section-title">Legacy Tracks</div>
+    <div id="legacy-list"></div>
+
+    <div class="section-title">Active Vows</div>
+    <div id="vows-list"></div>
+    <button class="mark-btn" onclick="addVow()" style="margin-top:10px;">+ SWEAR IRON VOW</button>
 
     <script src="../../js/sync.js"></script>
     <script>
-        let pc = { edge:2, heart:2, iron:2, shadow:2, wits:2, health:5, spirit:5, supply:5, momentum:2, xp:0, impacts: [], tracks: [] };
+        const RANKS = {
+            troublesome: 12, // 3 boxes
+            dangerous: 8,    // 2 boxes
+            formidable: 4,   // 1 box
+            extreme: 2,      // 2 ticks
+            epic: 1          // 1 tick
+        };
 
-        async function init() {
-            // Neural Link Handshake: Wait for sync.js to discover GAS_URL
-            if (!GAS_URL) {
-                console.log("Neural Link: Initializing handshake...");
-                setTimeout(init, 1000); 
-                return;
+        let charData = {
+            stats: { edge: 1, heart: 1, iron: 1, shadow: 1, wits: 1 },
+            legacies: [
+                { id: 'discovery', name: 'Discovery', ticks: 0, rank: 'epic' },
+                { id: 'bonds', name: 'Bonds', ticks: 0, rank: 'epic' },
+                { id: 'combat', name: 'Combat', ticks: 0, rank: 'epic' }
+            ],
+            vows: []
+        };
+
+        async function initSheet() {
+            if (!GAS_URL) { setTimeout(initSheet, 500); return; }
+            document.getElementById('display-name').innerText = `PILOT: ${charId.toUpperCase()}`;
+            
+            const cloud = await loadStats(charId);
+            if (cloud) {
+                if (cloud.edge) charData.stats = { edge: cloud.edge, heart: cloud.heart, iron: cloud.iron, shadow: cloud.shadow, wits: cloud.wits };
+                if (cloud.legacies) charData.legacies = JSON.parse(cloud.legacies);
+                if (cloud.vows) charData.vows = JSON.parse(cloud.vows);
+            }
+            renderAll();
+        }
+
+        function renderAll() {
+            // Render Stats
+            Object.keys(charData.stats).forEach(s => {
+                document.getElementById(`stat-${s}`).innerText = charData.stats[s];
+            });
+
+            // Render Legacies
+            const legList = document.getElementById('legacy-list');
+            legList.innerHTML = charData.legacies.map((l, i) => renderTrack(l, i, 'legacies')).join('');
+
+            // Render Vows
+            const vowList = document.getElementById('vows-list');
+            vowList.innerHTML = charData.vows.map((v, i) => renderTrack(v, i, 'vows')).join('');
+        }
+
+        function renderTrack(track, index, type) {
+            let boxes = '';
+            for (let i = 0; i < 10; i++) {
+                boxes += `<div class="box">`;
+                for (let t = 1; t <= 4; t++) {
+                    if (track.ticks >= (i * 4) + t) boxes += `<div class="tick tick-${t}"></div>`;
+                }
+                boxes += `</div>`;
             }
 
-            startHeartbeat(refreshSheet, 15000); 
-            await refreshSheet();
+            return `
+                <div class="track-container">
+                    <div class="track-header">
+                        <input type="text" value="${track.name}" class="vow-input" onchange="updateTrackData('${type}', ${index}, 'name', this.value)">
+                        <select class="rank-select" onchange="updateTrackData('${type}', ${index}, 'rank', this.value)">
+                            ${Object.keys(RANKS).map(r => `<option value="${r}" ${track.rank === r ? 'selected' : ''}>${r}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="progress-bar">${boxes}</div>
+                    <div class="btn-group">
+                        <button class="mark-btn" onclick="markProgress('${type}', ${index})">REACH MILESTONE</button>
+                        <button class="mark-btn" style="background:#ff0055" onclick="clearTrack('${type}', ${index})">RESET</button>
+                    </div>
+                </div>
+            `;
         }
 
-        async function refreshSheet() {
-            const data = await loadStats(charId);
-            if (!data) return;
-            ['edge','heart','iron','shadow','wits','health','spirit','supply','momentum','xp'].forEach(k => {
-                if(data[k] !== undefined) pc[k] = parseInt(data[k]);
-            });
-            try { pc.impacts = data.impacts ? JSON.parse(data.impacts) : []; } catch(e) { pc.impacts = []; }
-            try { pc.tracks = data.tracks ? JSON.parse(data.tracks) : []; } catch(e) { pc.tracks = []; }
-            render();
+        function markProgress(type, index) {
+            const track = charData[type][index];
+            const increment = RANKS[track.rank] || 1;
+            track.ticks = Math.min(40, track.ticks + increment);
+            saveAndRefresh();
         }
 
-        function render() {
-            ['edge','heart','iron','shadow','wits'].forEach(s => {
-                const el = document.getElementById(`stat-${s}`);
-                if(el) el.value = pc[s];
-            });
-            ['health','spirit','supply','xp'].forEach(v => {
-                const el = document.getElementById(`${v}-val`);
-                if(el) el.innerText = pc[v];
-            });
-            
-            const impactCount = pc.impacts.length;
-            const maxM = 10 - impactCount;
-            const resetM = impactCount >= 2 ? 0 : (impactCount === 1 ? 1 : 2);
-            document.getElementById('momentum-val').innerText = (pc.momentum >= 0 ? "+" : "") + pc.momentum;
-            document.getElementById('m-caps').innerText = `MAX +${maxM} / RESET +${resetM}`;
-            document.getElementById('burn-btn').disabled = pc.momentum <= resetM;
-
-            ['wounded','shaken','unprepared','encumbered'].forEach(i => {
-                const el = document.getElementById(`p-${i}`);
-                if(el) el.className = pc.impacts.includes(i) ? 'pill active' : 'pill';
-            });
-
-            const tList = document.getElementById('track-list');
-            tList.innerHTML = '';
-            pc.tracks.forEach((t, idx) => {
-                const card = document.createElement('div');
-                card.className = 'track-card';
-                let content = `<div class="track-header"><span class="stat-label" style="color:var(--accent)">${t.title}</span><button class="del-link" onclick="deleteTrack(${idx})">×</button></div>`;
-                if(t.type === 'clock') {
-                    content += `<div class="clock-grid">`;
-                    for(let i=1; i<=6; i++) content += `<div class="clock-seg ${i <= t.val ? 'active' : ''}" onclick="updateTrack(${idx},${i})"></div>`;
-                    content += `</div>`;
-                } else {
-                    content += `<div class="progress-bar">`;
-                    for(let i=1; i<=10; i++) content += `<div class="box ${i <= t.val ? 'filled' : ''}" onclick="updateTrack(${idx},${i})">${i <= t.val ? '✦' : ''}</div>`;
-                    content += `</div>`;
-                }
-                card.innerHTML = content;
-                tList.appendChild(card);
-            });
+        function updateTrackData(type, index, field, value) {
+            charData[type][index][field] = value;
+            saveAndRefresh();
         }
 
-        async function updatePC(key, val) { 
-            pc[key] = parseInt(val); 
-            await saveStat(charId, key, pc[key]); 
+        function addVow() {
+            charData.vows.push({ name: "New Iron Vow", ticks: 0, rank: "dangerous" });
+            saveAndRefresh();
         }
 
-        async function changeVital(key, amt) {
-            let newVal = pc[key] + amt;
-            if(['health','spirit','supply'].includes(key)) newVal = Math.max(0, Math.min(5, newVal));
-            else newVal = Math.max(0, newVal); // XP or Momentum
-            
-            pc[key] = newVal;
-            await saveStat(charId, key, pc[key]);
-            render();
+        function clearTrack(type, index) {
+            if(confirm("Zero out this progress track?")) {
+                charData[type][index].ticks = 0;
+                saveAndRefresh();
+            }
         }
 
-        async function burnMomentum() {
-            const impactCount = pc.impacts.length;
-            const resetM = impactCount >= 2 ? 0 : (impactCount === 1 ? 1 : 2);
-            const oldM = pc.momentum;
-            pc.momentum = resetM;
-            await saveStat(charId, "momentum", pc.momentum);
-            await saveStat(charId, "history_entry", `MOMENTUM BURN: ${oldM} -> ${resetM}`);
-            render();
+        async function saveAndRefresh() {
+            renderAll();
+            await saveStat(charId, "legacies", JSON.stringify(charData.legacies));
+            await saveStat(charId, "vows", JSON.stringify(charData.vows));
         }
 
-        async function toggleImpact(name) {
-            pc.impacts = pc.impacts.includes(name) ? pc.impacts.filter(i => i !== name) : [...pc.impacts, name];
-            await saveStat(charId, "impacts", JSON.stringify(pc.impacts));
-            render();
-        }
-
-        function addTrackPrompt() {
-            const name = prompt("Name of Objective/Clock?");
-            if(!name) return;
-            const type = confirm("Create a 6-Segment CLOCK? (Cancel for Progress Track)") ? 'clock' : 'progress';
-            pc.tracks.push({ title: name.toUpperCase(), type: type, val: 0 });
-            saveStat(charId, "tracks", JSON.stringify(pc.tracks));
-            render();
-        }
-
-        function updateTrack(idx, val) {
-            pc.tracks[idx].val = (pc.tracks[idx].val === val) ? val - 1 : val;
-            saveStat(charId, "tracks", JSON.stringify(pc.tracks));
-            render();
-        }
-
-        function deleteTrack(idx) { 
-            if(confirm("Terminate this track?")) { 
-                pc.tracks.splice(idx, 1); 
-                saveStat(charId, "tracks", JSON.stringify(pc.tracks)); 
-                render(); 
-            } 
-        }
-
-        async function actionRoll(statName) {
-            const statVal = pc[statName];
-            const d6 = Math.floor(Math.random() * 6) + 1;
-            const c1 = Math.floor(Math.random() * 10) + 1;
-            const c2 = Math.floor(Math.random() * 10) + 1;
-            const total = Math.min(10, d6 + statVal);
-            
-            let result = "MISS";
-            let color = "#f87171";
-            if (total > c1 && total > c2) { result = "STRONG HIT"; color = "var(--accent)"; }
-            else if (total > c1 || total > c2) { result = "WEAK HIT"; color = "#fbbf24"; }
-            
-            if (c1 === c2) result += " (MATCH!)";
-
-            const log = `ROLL [${statName.toUpperCase()}]: ${d6}+${statVal}=${total} vs (${c1}, ${c2})`;
-            
-            const area = document.getElementById('roll-result-area');
-            document.getElementById('roll-text').innerHTML = `<b style="color:${color}">${result}</b><br>${log}`;
-            area.style.display = 'block';
-            
-            await saveStat(charId, "history_entry", `${result}: ${log}`);
-        }
-
-        init();
+        initSheet();
     </script>
 </body>
 </html>
