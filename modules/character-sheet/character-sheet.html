@@ -60,27 +60,24 @@
         <div id="roll-details" style="font-family: monospace; opacity: 0.7; margin-top: 5px;">Dice details...</div>
     </div>
 
-    <script src="../../js/sync.js"></script>
-    <script src="../../js/datasworn.js"></script>
-
     <script>
         let charData = {};
 
         /**
          * INITIALIZATION
-         * Standardized Neural Link pattern
+         * Reaching up to the parent window for data and ID
          */
         async function init() {
             try {
-                // 1. Wait for DNA (Datasworn)
-                await window.dataswornReady;
+                // 1. Wait for DNA (Datasworn) from the parent window
+                await window.parent.dataswornReady;
                 
-                // 2. Fetch Character Nervous System (Sync)
-                const data = await loadStats(charId);
+                // 2. Fetch Character Nervous System via the parent window
+                const data = await window.parent.loadStats(window.parent.charId);
                 if (!data) throw new Error("Character Record Not Found");
                 
                 charData = data;
-                document.getElementById('char-display').innerText = (data.name || charId).toUpperCase();
+                document.getElementById('char-display').innerText = (data.name || window.parent.charId).toUpperCase();
                 
                 // Map Core Stats to UI
                 ['edge','heart','iron','shadow','wits'].forEach(s => {
@@ -113,7 +110,6 @@
             const dotBox = row.querySelector('.track-dots');
             for (let i = min; i <= max; i++) {
                 const dot = document.createElement('div');
-                // Ensure correct CSS class for negative values (momentum)
                 dot.className = `dot ${i <= current ? 'active' : ''}`;
                 dot.title = `${name}: ${i}`;
                 
@@ -121,9 +117,9 @@
                     // UI Update (Optimistic)
                     updateDotsUI(name, i, min, max);
                     
-                    // Logic Update (Persistence)
+                    // Logic Update (Persistence via Parent)
                     charData[name] = i;
-                    await saveStat(charId, name, i);
+                    await window.parent.saveStat(window.parent.charId, name, i);
                 };
                 dotBox.appendChild(dot);
             }
@@ -140,7 +136,7 @@
 
         /**
          * ACTION ROLLS
-         * Triggers a d6 + stat action roll and displays result in overlay.
+         * Triggers a d6 + stat action roll via the parent window
          */
         async function triggerMoveRoll(statName) {
             const statKey = statName.toLowerCase();
@@ -150,9 +146,8 @@
             overlay.style.display = 'block';
             document.getElementById('roll-res').innerText = "CALCULATING...";
             
-            // Trigger centralized roll via sync.js
-            // Note: triggerNeuralRoll handles sheet logging internally
-            const roll = await triggerNeuralRoll(statName, val, 0);
+            // Trigger centralized roll via parent's sync.js
+            const roll = await window.parent.triggerNeuralRoll(statName, val, 0);
             
             // Update the local overlay UI
             document.getElementById('roll-res').innerText = roll.result;
