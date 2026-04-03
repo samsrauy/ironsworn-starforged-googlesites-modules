@@ -7,99 +7,150 @@
         body { background: #0b0d12; color: #00ff9d; font-family: 'Exo 2', sans-serif; padding: 20px; overflow-y: auto; }
         .section-title { font-size: 0.7rem; letter-spacing: 3px; color: #454d5d; border-bottom: 1px solid #1a1c23; padding-bottom: 5px; margin: 20px 0 10px 0; text-transform: uppercase; }
         
-        /* Stats Table */
+        /* Stats Grid */
         .stat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; }
-        .stat-btn { background: #161922; border: 1px solid #454d5d; padding: 10px; text-align: center; cursor: pointer; border-radius: 4px; }
-        .stat-btn:hover { border-color: #00ff9d; background: rgba(0,255,153,0.05); }
+        .stat-btn { background: #161922; border: 1px solid #454d5d; padding: 10px; text-align: center; cursor: pointer; border-radius: 4px; transition: 0.2s; }
+        .stat-btn:hover { border-color: #00ff9d; background: rgba(0,255,153,0.1); transform: translateY(-2px); }
         .stat-val { display: block; font-size: 1.8rem; font-weight: bold; color: #bcdee7; }
         .stat-label { font-size: 0.6rem; text-transform: uppercase; opacity: 0.6; }
 
         /* Resource Tracks */
-        .track-row { display: flex; align-items: center; justify-content: space-between; background: #161922; padding: 8px 15px; margin-bottom: 5px; border-radius: 4px; }
-        .track-label { font-size: 0.8rem; font-weight: bold; width: 80px; }
-        .track-dots { display: flex; gap: 4px; }
-        .dot { width: 14px; height: 14px; border: 1px solid #454d5d; cursor: pointer; }
-        .dot.active { background: #00ff9d; box-shadow: 0 0 5px #00ff9d; border-color: #00ff9d; }
+        .track-row { display: flex; align-items: center; justify-content: space-between; background: #161922; padding: 8px 15px; margin-bottom: 5px; border-radius: 4px; border-left: 2px solid transparent; }
+        .track-row:hover { border-left-color: #00ff9d; }
+        .track-label { font-size: 0.8rem; font-weight: bold; width: 100px; }
+        .track-dots { display: flex; gap: 4px; flex-wrap: wrap; }
+        .dot { width: 14px; height: 14px; border: 1px solid #454d5d; cursor: pointer; transition: 0.2s; }
+        .dot:hover { border-color: #00ff9d; }
+        .dot.active { background: #00ff9d; box-shadow: 0 0 8px rgba(0, 255, 153, 0.5); border-color: #00ff9d; }
         
-        #roll-overlay { background: #000; border: 1px solid #00ff9d; padding: 15px; margin-top: 20px; display: none; }
+        /* Roll Overlay */
+        #roll-overlay { 
+            background: #000; 
+            border: 1px solid #00ff9d; 
+            padding: 15px; 
+            margin-top: 20px; 
+            display: none; 
+            box-shadow: inset 0 0 15px rgba(0, 255, 153, 0.1);
+        }
+        .roll-close { float: right; cursor: pointer; color: #454d5d; font-size: 0.8rem; }
+        .roll-close:hover { color: #fff; }
     </style>
 </head>
 <body>
-    <div id="char-display" style="font-size: 1.2rem; letter-spacing: 5px; margin-bottom: 20px;">LINKING...</div>
+    <div id="char-display" style="font-size: 1.2rem; letter-spacing: 5px; margin-bottom: 20px; color: #bcdee7;">UPLINKING...</div>
 
     <div class="stat-grid">
-        <div class="stat-btn" onclick="triggerRoll('Edge')"><span class="stat-label">Edge</span><span id="v-edge" class="stat-val">2</span></div>
-        <div class="stat-btn" onclick="triggerRoll('Heart')"><span class="stat-label">Heart</span><span id="v-heart" class="stat-val">2</span></div>
-        <div class="stat-btn" onclick="triggerRoll('Iron')"><span class="stat-label">Iron</span><span id="v-iron" class="stat-val">2</span></div>
-        <div class="stat-btn" onclick="triggerRoll('Shadow')"><span class="stat-label">Shadow</span><span id="v-shadow" class="stat-val">2</span></div>
-        <div class="stat-btn" onclick="triggerRoll('Wits')"><span class="stat-label">Wits</span><span id="v-wits" class="stat-val">2</span></div>
+        <div class="stat-btn" onclick="triggerMoveRoll('Edge')"><span class="stat-label">Edge</span><span id="v-edge" class="stat-val">0</span></div>
+        <div class="stat-btn" onclick="triggerMoveRoll('Heart')"><span class="stat-label">Heart</span><span id="v-heart" class="stat-val">0</span></div>
+        <div class="stat-btn" onclick="triggerMoveRoll('Iron')"><span class="stat-label">Iron</span><span id="v-iron" class="stat-val">0</span></div>
+        <div class="stat-btn" onclick="triggerMoveRoll('Shadow')"><span class="stat-label">Shadow</span><span id="v-shadow" class="stat-val">0</span></div>
+        <div class="stat-btn" onclick="triggerMoveRoll('Wits')"><span class="stat-label">Wits</span><span id="v-wits" class="stat-val">0</span></div>
     </div>
 
     <div class="section-title">Condition Tracks</div>
-    <div id="tracks-container">
-        </div>
+    <div id="tracks-container"></div>
 
     <div class="section-title">Momentum</div>
-    <div id="momentum-container" class="track-row" style="background: #000; border: 1px solid #454d5d;">
-        </div>
+    <div id="momentum-container"></div>
 
     <div id="roll-overlay">
+        <span class="roll-close" onclick="this.parentElement.style.display='none'">[CLOSE]</span>
         <div id="roll-res" style="font-size: 1.2rem; font-weight: bold;">RESULT</div>
         <div id="roll-details" style="font-family: monospace; opacity: 0.7; margin-top: 5px;">Dice details...</div>
     </div>
 
     <script src="../../js/sync.js"></script>
+    <script src="../../js/datasworn.js"></script>
+
     <script>
         let charData = {};
 
         async function init() {
+            // Wait for Datasworn to be ready (Race Condition Awareness)
+            if (typeof datasworn === 'undefined' || datasworn === null) {
+                console.warn("Character Sheet: Waiting for System Header...");
+                setTimeout(init, 500);
+                return;
+            }
+
+            console.log("Character Sheet: Neural Link Established.");
             const data = await loadStats(charId);
             if (!data) return;
-            charData = data;
-            document.getElementById('char-display').innerText = charId.toUpperCase();
             
-            ['edge','heart','iron','shadow','wits'].forEach(s => document.getElementById(`v-${s}`).innerText = data[s]);
+            charData = data;
+            document.getElementById('char-display').innerText = (data.name || charId).toUpperCase();
+            
+            // Map Stats
+            ['edge','heart','iron','shadow','wits'].forEach(s => {
+                const el = document.getElementById(`v-${s}`);
+                if (el) el.innerText = data[s] || 0;
+            });
 
-            renderResource('health', 0, 5, data.health);
-            renderResource('spirit', 0, 5, data.spirit);
-            renderResource('supply', 0, 5, data.supply);
-            renderResource('momentum', -6, 10, data.momentum);
+            // Render Tracks
+            document.getElementById('tracks-container').innerHTML = '';
+            document.getElementById('momentum-container').innerHTML = '';
+            
+            renderResource('health', 0, 5, data.health || 0, 'tracks-container');
+            renderResource('spirit', 0, 5, data.spirit || 0, 'tracks-container');
+            renderResource('supply', 0, 5, data.supply || 0, 'tracks-container');
+            renderResource('momentum', -6, 10, data.momentum || 0, 'momentum-container');
         }
 
-        function renderResource(name, min, max, current) {
-            const container = (name === 'momentum') ? document.getElementById('momentum-container') : document.createElement('div');
-            if(name !== 'momentum') {
-                container.className = 'track-row';
-                document.getElementById('tracks-container').appendChild(container);
-            }
-            
-            container.innerHTML = `<span class="track-label">${name.toUpperCase()}</span><div class="track-dots"></div>`;
-            const dotBox = container.querySelector('.track-dots');
+        function renderResource(name, min, max, current, containerId) {
+            const container = document.getElementById(containerId);
+            const row = document.createElement('div');
+            row.className = 'track-row';
+            row.innerHTML = `<span class="track-label">${name.toUpperCase()}</span><div class="track-dots" id="dots-${name}"></div>`;
+            container.appendChild(row);
 
+            const dotBox = row.querySelector('.track-dots');
             for (let i = min; i <= max; i++) {
                 const dot = document.createElement('div');
                 dot.className = `dot ${i <= current ? 'active' : ''}`;
+                dot.title = `${name}: ${i}`;
+                
                 dot.onclick = async () => {
+                    // UI Update (Immediate/Optimistic)
+                    updateDotsUI(name, i, min, max);
+                    
+                    // Logic Update (Background)
                     charData[name] = i;
                     await saveStat(charId, name, i);
-                    location.reload(); // Refresh to update visuals
                 };
                 dotBox.appendChild(dot);
             }
         }
 
-        function triggerRoll(stat) {
-            const val = parseInt(charData[stat.toLowerCase()]);
-            const roll = rollDice(val);
-            const overlay = document.getElementById('roll-overlay');
-            overlay.style.display = 'block';
-            document.getElementById('roll-res').innerText = roll.result;
-            document.getElementById('roll-res').style.color = roll.result.includes("MISS") ? "#ff0055" : "#00ff9d";
-            document.getElementById('roll-details').innerText = `${stat} Roll: ${roll.details}`;
-            
-            saveStat(charId, "history_entry", `${stat} Roll: ${roll.result}`);
+        function updateDotsUI(name, val, min, max) {
+            const dots = document.querySelectorAll(`#dots-${name} .dot`);
+            dots.forEach((dot, index) => {
+                const dotValue = min + index;
+                if (dotValue <= val) dot.classList.add('active');
+                else dot.classList.remove('active');
+            });
         }
 
+        async function triggerMoveRoll(statName) {
+            const val = parseInt(charData[statName.toLowerCase()] || 0);
+            
+            // Use the centralized rolling engine in sync.js
+            if (typeof triggerNeuralRoll === 'function') {
+                const overlay = document.getElementById('roll-overlay');
+                overlay.style.display = 'block';
+                document.getElementById('roll-res').innerText = "ROLLING...";
+                
+                // We pass the stat value to triggerNeuralRoll
+                // Note: We'll update triggerNeuralRoll slightly to return the roll data for UI display
+                const roll = await triggerNeuralRoll(statName, val, 0);
+                
+                // Update UI based on result
+                document.getElementById('roll-res').innerText = roll.result;
+                document.getElementById('roll-res').style.color = roll.result.includes("MISS") ? "#ff0055" : "#00ff9d";
+                document.getElementById('roll-details').innerText = `${statName} Roll: ${roll.details}`;
+            }
+        }
+
+        // Boot system
         init();
     </script>
 </body>
