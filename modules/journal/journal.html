@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Encrypted Log | Starforged</title>
+    <link rel="stylesheet" href="../../css/style.css">
+    <style>
+        body { background: #0b0d12; color: #e2e4e9; padding: 15px; font-family: 'Exo 2', sans-serif; display: flex; flex-direction: column; height: 95vh; margin: 0; }
+        .journal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-shrink: 0; }
+        .status-light { width: 8px; height: 8px; border-radius: 50%; background: #444; display: inline-block; margin-right: 5px; transition: 0.5s; }
+        .status-active { background: #00ff9d; box-shadow: 0 0 8px #00ff9d; }
+        textarea { flex-grow: 1; background: #161922; color: #bcdee7; border: 1px solid #454d5d; padding: 15px; font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; line-height: 1.5; outline: none; resize: none; border-radius: 4px; transition: 0.3s; }
+        textarea:focus { border-color: #00ff9d; background: #1a1c23; }
+        .controls { margin-top: 10px; display: flex; gap: 10px; flex-shrink: 0; }
+        .save-btn { background: #00ff9d; color: #000; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; flex-grow: 1; text-transform: uppercase; letter-spacing: 1px; }
+        .save-btn:disabled { background: #444; opacity: 0.5; }
+    </style>
+</head>
+<body>
+    <div class="journal-header">
+        <div style="font-size: 0.7rem; letter-spacing: 2px;">
+            <span id="sync-indicator" class="status-light"></span> ENCRYPTED LOG CHANNEL
+        </div>
+        <div id="last-saved" style="font-size: 0.6rem; opacity: 0.5;">UPLINKING...</div>
+    </div>
+
+    <textarea id="journal-input" placeholder="Begin transmission..."></textarea>
+
+    <div class="controls">
+        <button id="save-button" class="save-btn" onclick="commitEntry()">Commit to Archive</button>
+    </div>
+
+    <script src="../../js/sync.js"></script>
+    <script>
+        const textarea = document.getElementById('journal-input');
+        const indicator = document.getElementById('sync-indicator');
+        const saveBtn = document.getElementById('save-button');
+        const timestamp = document.getElementById('last-saved');
+        let lastDraft = "";
+
+        async function init() {
+            if (typeof charId === 'undefined' || typeof loadStats !== 'function') {
+                setTimeout(init, 300); return;
+            }
+            const stats = await loadStats(charId);
+            indicator.classList.add('status-active');
+            if (stats && stats.journal) {
+                textarea.value = stats.journal;
+                lastDraft = stats.journal;
+                timestamp.innerText = "DATA CORE SYNCHRONIZED";
+            }
+        }
+
+        async function commitEntry() {
+            const content = textarea.value.trim();
+            if (!content || saveBtn.disabled) return;
+
+            saveBtn.disabled = true;
+            timestamp.innerText = "TRANSMITTING...";
+
+            try {
+                // 1. Save "Draft" to Sheet so it stays in the box
+                await saveStat(charId, "journal", content);
+                
+                // 2. Push final text to the Shared Google Doc Archive
+                await sendToArchive(content);
+
+                const now = new Date();
+                timestamp.innerText = "ARCHIVE SECURED: " + now.toLocaleTimeString();
+                lastDraft = content;
+            } catch (err) {
+                timestamp.innerText = "LINK FAILURE";
+            } finally {
+                saveBtn.disabled = false;
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
