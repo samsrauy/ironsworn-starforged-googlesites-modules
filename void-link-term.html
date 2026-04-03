@@ -1,101 +1,204 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
     <style>
-        :root { --neon: #00ff9d; --panel: #0b0d12; --border: #1a1c23; }
+        /* TERMINAL CORE STYLES */
+        :root { 
+            --neon: #00ff9d; 
+            --bg: #050508; 
+            --panel: #0b0d12; 
+            --border: #1a1c23; 
+            --text: #e0e0e0;
+        }
+
+        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: monospace; }
+
         #terminal-grid { 
             display: grid; 
             grid-template-columns: 380px 1fr; 
             grid-template-rows: 60px 1fr 350px; 
-            height: 100vh; gap: 2px; background: var(--border); 
+            height: 100vh; 
+            gap: 2px; 
+            background: var(--border); 
         }
+
+        /* HEADER */
         .header-bar { 
-            grid-column: 1 / -1; background: var(--panel); 
-            display: flex; align-items: center; justify-content: space-between; 
-            padding: 0 20px; border-bottom: 1px solid var(--neon); 
+            grid-column: 1 / -1; 
+            background: var(--panel); 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            padding: 0 20px; 
+            border-bottom: 1px solid var(--neon); 
+            box-shadow: 0 0 10px rgba(0, 255, 157, 0.1);
         }
-        .module-frame { background: var(--panel); overflow-y: auto; border: 1px solid var(--border); }
+
+        /* MODULE FRAMES */
+        .module-frame { 
+            background: var(--panel); 
+            overflow-y: auto; 
+            position: relative; 
+            border: 1px solid var(--border);
+        }
+
         #frame-char { grid-row: 2 / 4; }
         #frame-map { grid-column: 2; grid-row: 2; }
-        #frame-journal { grid-column: 2; grid-row: 3; }
-        .nav-btn { background: none; border: 1px solid var(--neon); color: var(--neon); padding: 5px 12px; cursor: pointer; font-family: inherit; margin-left: 10px; font-size: 12px; }
-        .nav-btn:hover { background: var(--neon); color: #000; }
+        #frame-journal { grid-column: 2; grid-row: 3; border-top: 1px solid var(--border); }
+
+        /* NAV BUTTONS */
+        .nav-btn { 
+            background: none; 
+            border: 1px solid var(--neon); 
+            color: var(--neon); 
+            padding: 6px 14px; 
+            cursor: pointer; 
+            font-family: inherit; 
+            font-size: 12px;
+            margin-left: 10px;
+            transition: 0.2s ease;
+        }
+        .nav-btn:hover { background: var(--neon); color: #000; box-shadow: 0 0 8px var(--neon); }
+
+        /* DRAWER SYSTEM */
+        .drawer { 
+            position: fixed; 
+            right: -450px; 
+            top: 60px; 
+            width: 450px; 
+            height: calc(100% - 60px); 
+            background: var(--panel); 
+            border-left: 1px solid var(--neon); 
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            z-index: 1000; 
+            overflow-y: auto; 
+            padding: 0;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+        }
+        .drawer.active { right: 0; }
+        
+        .drawer-content { height: 100%; width: 100%; }
+
+        /* SCROLLBARS */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--neon); }
     </style>
 </head>
 <body>
 
 <div id="terminal-grid">
     <div class="header-bar">
-        <div id="char-display">PILOT: ---</div>
-        <div>
-            <button class="nav-btn" onclick="toggleAssets()">☰ ASSETS</button>
-            <span style="margin-left:20px; letter-spacing:2px; color:var(--neon); opacity: 0.7;">VOID-LINK // NAV-OS</span>
+        <div id="char-display" style="font-weight: bold; letter-spacing: 1px; color: var(--neon);">PILOT: ---</div>
+        <div style="display:flex; align-items:center;">
+            <button class="nav-btn" onclick="toggleDrawer('asset-drawer', 'asset-browser/asset-browser.html')">☰ ASSETS</button>
+            <button class="nav-btn" onclick="toggleDrawer('compendium-drawer', 'compendium/compendium.html')">☰ COMPENDIUM</button>
+            <div style="margin-left:25px; letter-spacing:3px; font-size:14px; opacity:0.8; border-left: 1px solid #333; padding-left: 20px;">VOID-LINK // NAV-OS v3.0</div>
         </div>
     </div>
     
     <div id="frame-char" class="module-frame"></div>
     <div id="frame-map" class="module-frame"></div>
     <div id="frame-journal" class="module-frame"></div>
-    
-    <div id="frame-assets" style="display:none; position:fixed; right:0; top:60px; width:400px; height:calc(100% - 60px); background:var(--panel); border-left:1px solid var(--neon); z-index:100;"></div>
+
+    <div id="asset-drawer" class="drawer">
+        <div id="frame-assets" class="drawer-content"></div>
+    </div>
+    <div id="compendium-drawer" class="drawer">
+        <div id="frame-compendium" class="drawer-content"></div>
+    </div>
 </div>
 
 <script>
     const GITHUB_BASE = "https://samsrauy.github.io/void-link/modules/";
 
-    function toggleAssets() {
-        const f = document.getElementById('frame-assets');
-        if (f.style.display === 'none') {
-            f.style.display = 'block';
-            loadModule('frame-assets', 'asset-browser/asset-browser.html');
-        } else {
-            f.style.display = 'none';
+    /**
+     * Toggles the side drawers (Assets/Compendium)
+     */
+    function toggleDrawer(drawerId, modulePath) {
+        const drawer = document.getElementById(drawerId);
+        const isActive = drawer.classList.contains('active');
+        
+        // Close other drawers first
+        document.querySelectorAll('.drawer').forEach(d => d.classList.remove('active'));
+        
+        if (!isActive) {
+            drawer.classList.add('active');
+            const targetFrameId = drawer.querySelector('.drawer-content').id;
+            loadModule(targetFrameId, modulePath);
         }
     }
 
+    /**
+     * Injects HTML modules and REVIVES scripts into the global scope
+     * This is what prevents 'generateSector is not defined' errors
+     */
     async function loadModule(id, path) {
         const target = document.getElementById(id);
         const fullPath = path.startsWith('http') ? path : GITHUB_BASE + path;
         
-        const response = await fetch(fullPath);
-        const html = await response.text();
-        target.innerHTML = html;
+        try {
+            const response = await fetch(fullPath);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const html = await response.text();
+            target.innerHTML = html;
 
-        // Create a sequence of promises to ensure scripts are executed and ready
-        const scripts = Array.from(target.querySelectorAll('script'));
-        for (const oldScript of scripts) {
-            await new Promise((resolve, reject) => {
-                const newScript = document.createElement('script');
-                if (oldScript.src) {
-                    newScript.src = oldScript.src;
-                    newScript.onload = resolve;
-                    newScript.onerror = reject;
-                } else {
-                    newScript.textContent = oldScript.textContent;
-                    // Force inline scripts into the head to register functions globally
+            // Execute scripts sequentially and wait for them to load
+            const scripts = Array.from(target.querySelectorAll('script'));
+            for (const oldScript of scripts) {
+                await new Promise((resolve, reject) => {
+                    const newScript = document.createElement('script');
+                    
+                    // Copy attributes (src, etc)
+                    if (oldScript.src) {
+                        newScript.src = oldScript.src;
+                        newScript.onload = resolve;
+                        newScript.onerror = reject;
+                    } else {
+                        newScript.textContent = oldScript.textContent;
+                        // Manually trigger resolve for inline scripts
+                        setTimeout(resolve, 10); 
+                    }
+                    
+                    // Force script into <head> so functions are globally accessible
                     document.head.appendChild(newScript);
-                    resolve();
-                }
-                if (oldScript.src) document.head.appendChild(newScript);
-            });
+                    
+                    // If it was inline, it's already executed
+                    if (!oldScript.src) resolve();
+                });
+            }
+        } catch (err) {
+            console.error(`Module Injection Failure [${id}]:`, err);
+            target.innerHTML = `<div style="padding:20px;color:#ff0055;">LINK SEVERED: ${path}</div>`;
         }
     }
 
+    /**
+     * Master Boot Sequence
+     * Called by Index.html once libraries are ready
+     */
     async function bootTerminal() {
+        // Set callsign display
         if(window.charId) {
             const display = document.getElementById('char-display');
             if(display) display.innerText = `PILOT: ${window.charId.toUpperCase()}`;
         }
         
-        // This 'await' is the key: it blocks the loading screen until all 3 are 100% ready
-        await Promise.all([
-            loadModule('frame-char', 'character-sheet/character-sheet.html'),
-            loadModule('frame-map', 'map/map.html'),
-            loadModule('frame-journal', 'journal/journal.html')
-        ]);
-
-        console.log("Terminal: Neural Link Established. All Modules Hot.");
-        return true;
+        // LOAD CORE MODULES IN PARALLEL
+        // We wait for all three to report 'ready' before Index.html hides the loading screen
+        try {
+            await Promise.all([
+                loadModule('frame-char', 'character-sheet/character-sheet.html'),
+                loadModule('frame-map', 'map/map.html'),
+                loadModule('frame-journal', 'journal/journal.html')
+            ]);
+            console.log("Terminal: All core modules localized and initialized.");
+        } catch (e) {
+            console.error("Terminal: Boot sequence interrupted.", e);
+        }
+        
+        return true; 
     }
 </script>
 </body>
