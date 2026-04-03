@@ -4,82 +4,75 @@
     <base target="_top">
     <link rel="stylesheet" href="https://samsrauy.github.io/void-link/css/style.css">
     <style>
-      body { background-color: #050508; color: #00ff9d; font-family: 'Share Tech Mono', monospace; margin: 0; overflow: hidden; }
-      #loading-screen { 
-        width: 100vw; height: 100vh; display: flex; align-items: center; 
-        justify-content: center; text-align: center; flex-direction: column;
-      }
+      body { background: #050508; color: #00ff9d; font-family: monospace; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+      #setup-box { border: 1px solid #00ff9d; padding: 30px; text-align: center; background: #0b0d12; box-shadow: 0 0 15px rgba(0,255,157,0.2); }
+      input { background: #161922; border: 1px solid #00ff9d; color: #00ff9d; padding: 10px; margin-bottom: 10px; text-align: center; font-family: inherit; }
+      button { background: #00ff9d; color: #000; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
     </style>
   </head>
   <body>
-    
-    <div id="loading-screen">
-      <div id="status-display">INITIALIZING NEURAL LINK...</div>
+    <div id="setup-box" style="display:none;">
+        <div style="margin-bottom:10px;">NEURAL LINK REQUIRED</div>
+        <input type="text" id="pilot-name" placeholder="ENTER CALLSIGN" /><br>
+        <button onclick="requestUplink()">INITIALIZE CONNECTION</button>
     </div>
-
-    <div id="starforged-terminal" style="display: none;"></div>
+    <div id="loading-screen" style="text-align:center;">
+        <div style="letter-spacing:3px;">ESTABLISHING UPLINK...</div>
+    </div>
+    <div id="starforged-terminal" style="display: none; width: 100vw; height: 100vh;"></div>
 
     <script>
-      const GITHUB_BASE_URL = "https://samsrauy.github.io/void-link";
+      const MY_REPO = "https://samsrauy.github.io/void-link";
       window.charId = "<?= charId ?>"; 
 
-      async function bootSystem() {
-          const status = document.getElementById('status-display');
+      // Bridge for sync.js
+      window.gLink = {
+        saveStatServer: (id, f, v) => google.script.run.saveStatServer(id, f, v),
+        loadStatsServer: (id) => google.script.run.withSuccessHandler(res => { if(window.onStatsLoaded) onStatsLoaded(res); }).loadStatsServer(id),
+        logServer: (id, msg) => google.script.run.logServer(id, msg)
+      };
 
-          // 1. IDENTITY GUARD: Redirect if ?id= is missing
-          if (!window.charId || window.charId === "" || window.charId === "null") {
-              const pilotName = prompt("NEURAL LINK INCOMPLETE. PLEASE ENTER PILOT CALLSIGN:");
-              if (pilotName && pilotName.trim() !== "") {
-                  const baseUrl = window.location.href.split('?')[0];
-                  window.top.location.href = baseUrl + "?id=" + encodeURIComponent(pilotName.trim());
-                  return; 
-              } else {
-                  status.innerHTML = "<span style='color:#ff0055;'>ACCESS DENIED: CALLSIGN REQUIRED.</span>";
-                  return;
-              }
+      function requestUplink() {
+          const name = document.getElementById('pilot-name').value.trim();
+          if (name) {
+              google.script.run.withSuccessHandler(url => window.top.location.href = url + "?id=" + encodeURIComponent(name)).getAppUrl();
           }
+      }
 
-          // 2. FETCH CORE UI
+      async function bootSystem() {
+          if (!window.charId) {
+              document.getElementById('loading-screen').style.display = 'none';
+              document.getElementById('setup-box').style.display = 'block';
+              return;
+          }
           try {
-              status.innerText = "MOUNTING UI FRAGMENTS...";
-              const response = await fetch(`${GITHUB_BASE_URL}/void-link-term.html`);
-              if (!response.ok) throw new Error("Connection to GitHub Repository failed.");
-              
-              const terminalDiv = document.getElementById('starforged-terminal');
-              terminalDiv.innerHTML = await response.text();
+              const res = await fetch(`${MY_REPO}/void-link-term.html`);
+              const mount = document.getElementById('starforged-terminal');
+              mount.innerHTML = await res.text();
 
-              // 3. LOAD LOGIC ENGINES (Load JS before reviving HTML scripts)
-              status.innerText = "ESTABLISHING DATA UPLINK...";
               await injectScript('js/datasworn.js');
               await injectScript('js/sync.js');
 
-              // 4. REVIVE INJECTED SCRIPTS
-              terminalDiv.querySelectorAll('script').forEach(oldScript => {
-                  const newScript = document.createElement('script');
-                  newScript.textContent = oldScript.textContent;
-                  document.body.appendChild(newScript);
-                  oldScript.remove();
+              mount.querySelectorAll('script').forEach(old => {
+                  const n = document.createElement('script');
+                  if (old.src) n.src = old.src;
+                  else n.textContent = old.textContent;
+                  document.body.appendChild(n);
               });
 
-              // 5. FINALIZE
               document.getElementById('loading-screen').style.display = 'none';
-              terminalDiv.style.display = 'block';
+              mount.style.display = 'block';
               
-              if (typeof bootTerminal === 'function') bootTerminal();
-
-          } catch (err) {
-              status.innerHTML = `<span style='color:#ff0055;'>CRITICAL BOOT FAILURE:</span><br>${err.message}`;
-          }
+              setTimeout(() => { if (typeof bootTerminal === 'function') bootTerminal(); }, 400);
+          } catch (e) { document.getElementById('loading-screen').innerText = "FATAL BOOT ERROR: " + e.message; }
       }
 
-      async function injectScript(scriptPath) {
-          const response = await fetch(`${GITHUB_BASE_URL}/${scriptPath}`);
-          const code = await response.text();
-          const scriptEl = document.createElement('script');
-          scriptEl.textContent = code;
-          document.body.appendChild(scriptEl);
+      async function injectScript(p) {
+          const r = await fetch(`${MY_REPO}/${p}`);
+          const s = document.createElement('script');
+          s.textContent = await r.text();
+          document.body.appendChild(s);
       }
-
       bootSystem();
     </script>
   </body>
