@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <title>Character Manifest | Starforged</title>
     <link rel="stylesheet" href="../../css/style.css">
     <style>
         body { background: #0b0d12; color: #00ff9d; font-family: 'Exo 2', sans-serif; padding: 20px; overflow-y: auto; }
@@ -65,35 +66,41 @@
     <script>
         let charData = {};
 
+        /**
+         * INITIALIZATION
+         * Standardized Neural Link pattern
+         */
         async function init() {
-            // Wait for Datasworn to be ready (Race Condition Awareness)
-            if (typeof datasworn === 'undefined' || datasworn === null) {
-                console.warn("Character Sheet: Waiting for System Header...");
-                setTimeout(init, 500);
-                return;
+            try {
+                // 1. Wait for DNA (Datasworn)
+                await window.dataswornReady;
+                
+                // 2. Fetch Character Nervous System (Sync)
+                const data = await loadStats(charId);
+                if (!data) throw new Error("Character Record Not Found");
+                
+                charData = data;
+                document.getElementById('char-display').innerText = (data.name || charId).toUpperCase();
+                
+                // Map Core Stats to UI
+                ['edge','heart','iron','shadow','wits'].forEach(s => {
+                    const el = document.getElementById(`v-${s}`);
+                    if (el) el.innerText = data[s] || 0;
+                });
+
+                // Clear and Re-render Tracks
+                document.getElementById('tracks-container').innerHTML = '';
+                document.getElementById('momentum-container').innerHTML = '';
+                
+                renderResource('health', 0, 5, parseInt(data.health || 0), 'tracks-container');
+                renderResource('spirit', 0, 5, parseInt(data.spirit || 0), 'tracks-container');
+                renderResource('supply', 0, 5, parseInt(data.supply || 0), 'tracks-container');
+                renderResource('momentum', -6, 10, parseInt(data.momentum || 0), 'momentum-container');
+
+            } catch (err) {
+                console.error("Sheet Init Failure:", err);
+                document.getElementById('char-display').innerText = "LINK SEVERED";
             }
-
-            console.log("Character Sheet: Neural Link Established.");
-            const data = await loadStats(charId);
-            if (!data) return;
-            
-            charData = data;
-            document.getElementById('char-display').innerText = (data.name || charId).toUpperCase();
-            
-            // Map Stats
-            ['edge','heart','iron','shadow','wits'].forEach(s => {
-                const el = document.getElementById(`v-${s}`);
-                if (el) el.innerText = data[s] || 0;
-            });
-
-            // Render Tracks
-            document.getElementById('tracks-container').innerHTML = '';
-            document.getElementById('momentum-container').innerHTML = '';
-            
-            renderResource('health', 0, 5, data.health || 0, 'tracks-container');
-            renderResource('spirit', 0, 5, data.spirit || 0, 'tracks-container');
-            renderResource('supply', 0, 5, data.supply || 0, 'tracks-container');
-            renderResource('momentum', -6, 10, data.momentum || 0, 'momentum-container');
         }
 
         function renderResource(name, min, max, current, containerId) {
@@ -106,14 +113,15 @@
             const dotBox = row.querySelector('.track-dots');
             for (let i = min; i <= max; i++) {
                 const dot = document.createElement('div');
+                // Ensure correct CSS class for negative values (momentum)
                 dot.className = `dot ${i <= current ? 'active' : ''}`;
                 dot.title = `${name}: ${i}`;
                 
                 dot.onclick = async () => {
-                    // UI Update (Immediate/Optimistic)
+                    // UI Update (Optimistic)
                     updateDotsUI(name, i, min, max);
                     
-                    // Logic Update (Background)
+                    // Logic Update (Persistence)
                     charData[name] = i;
                     await saveStat(charId, name, i);
                 };
@@ -130,27 +138,29 @@
             });
         }
 
+        /**
+         * ACTION ROLLS
+         * Triggers a d6 + stat action roll and displays result in overlay.
+         */
         async function triggerMoveRoll(statName) {
-            const val = parseInt(charData[statName.toLowerCase()] || 0);
+            const statKey = statName.toLowerCase();
+            const val = parseInt(charData[statKey] || 0);
             
-            // Use the centralized rolling engine in sync.js
-            if (typeof triggerNeuralRoll === 'function') {
-                const overlay = document.getElementById('roll-overlay');
-                overlay.style.display = 'block';
-                document.getElementById('roll-res').innerText = "ROLLING...";
-                
-                // We pass the stat value to triggerNeuralRoll
-                // Note: We'll update triggerNeuralRoll slightly to return the roll data for UI display
-                const roll = await triggerNeuralRoll(statName, val, 0);
-                
-                // Update UI based on result
-                document.getElementById('roll-res').innerText = roll.result;
-                document.getElementById('roll-res').style.color = roll.result.includes("MISS") ? "#ff0055" : "#00ff9d";
-                document.getElementById('roll-details').innerText = `${statName} Roll: ${roll.details}`;
-            }
+            const overlay = document.getElementById('roll-overlay');
+            overlay.style.display = 'block';
+            document.getElementById('roll-res').innerText = "CALCULATING...";
+            
+            // Trigger centralized roll via sync.js
+            // Note: triggerNeuralRoll handles sheet logging internally
+            const roll = await triggerNeuralRoll(statName, val, 0);
+            
+            // Update the local overlay UI
+            document.getElementById('roll-res').innerText = roll.result;
+            document.getElementById('roll-res').style.color = roll.result.includes("MISS") ? "#ff0055" : "#00ff9d";
+            document.getElementById('roll-details').innerText = `${statName} (+${val}) vs ${roll.details}`;
         }
 
-        // Boot system
+        // Initialize Character Record
         init();
     </script>
 </body>
