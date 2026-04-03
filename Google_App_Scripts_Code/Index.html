@@ -27,6 +27,7 @@
         window.history.replaceState({}, '', '?id=' + charId);
       }
 
+      // Note that the fetch is grabing void-link-term.html purposefully since that's the layout of the software. You can move things around by editing that file directly.
       fetch(`${GITHUB_BASE_URL}/void-link-term.html`)
         .then(response => response.text())
         .then(html => {
