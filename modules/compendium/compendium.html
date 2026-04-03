@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Compendium | Starforged Neural Link</title>
+    <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+    <div class="header">
+        <div id="status-msg">LINKING TO DATASWORN DNA...</div>
+        <div class="search-wrap">
+            <input type="text" id="compendium-search" placeholder="SEARCH ORACLES/MOVES..." oninput="searchCompendium(this.value)">
+        </div>
+    </div>
+
+    <div id="compendium-content" class="compendium-grid">
+        </div>
+
+    <script src="../../js/sync.js"></script>
+    <script src="../../js/datasworn.js"></script>
+
+    <script>
+        /**
+         * COMPENDIUM INIT
+         * This module acts as the library. It waits for dataswornReady
+         * then categorizes Oracles and Moves for browsing.
+         */
+        async function init() {
+            try {
+                // 1. Wait for the DNA Core
+                await window.dataswornReady;
+                
+                if (!window.datasworn) throw new Error("Data Core Offline");
+
+                console.log("Compendium: Neural Link Established.");
+                document.getElementById('status-msg').innerText = "ARCHIVES DECRYPTED";
+
+                // Initial render: show Move categories by default
+                renderCategories();
+
+            } catch (err) {
+                console.error("Compendium Link Failure:", err);
+                document.getElementById('status-msg').innerText = "ARCHIVE ERROR: LINK SEVERED";
+            }
+        }
+
+        function renderCategories() {
+            const content = document.getElementById('compendium-content');
+            // Starforged path: moves and oracles
+            const moves = window.datasworn.moves || {};
+            const oracles = window.datasworn.oracles || {};
+
+            let html = `<h3>MOVE CATEGORIES</h3><div class="cat-list">`;
+            for (const [key, cat] of Object.entries(moves)) {
+                html += `<button onclick="showMoveCategory('${key}')">${cat.name.toUpperCase()}</button>`;
+            }
+            html += `</div><h3>ORACLE TABLES</h3><div class="cat-list">`;
+            for (const [key, cat] of Object.entries(oracles)) {
+                html += `<button onclick="showOracleCategory('${key}')">${cat.name.toUpperCase()}</button>`;
+            }
+            html += `</div>`;
+            
+            content.innerHTML = html;
+        }
+
+        // ... showMoveCategory and showOracleCategory logic would go here ...
+        // These will use window.datasworn.moves[id] and window.datasworn.oracles[id]
+
+        init();
+    </script>
+</body>
+</html>
