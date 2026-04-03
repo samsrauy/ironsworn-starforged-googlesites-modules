@@ -7,13 +7,35 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #050508; color: #00ff9d; font-family: 'Exo 2', sans-serif; overflow: hidden; }
         
+        /* --- LOGIN / SETUP SCREEN --- */
+        #login-screen {
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            height: 100vh; background: radial-gradient(circle, #0a0a1a 0%, #000 100%);
+        }
+        .setup-box { 
+            background: rgba(0, 255, 153, 0.05); border: 1px solid #00ff9d; padding: 40px; 
+            border-radius: 8px; text-align: center; box-shadow: 0 0 20px rgba(0, 255, 153, 0.1); 
+            width: 400px; 
+        }
+        .input-group { margin-bottom: 20px; text-align: left; }
+        .input-group label { display: block; font-size: 0.6rem; letter-spacing: 2px; margin-bottom: 5px; opacity: 0.7; }
+        .input-group input { 
+            background: #000; border: 1px solid #00ff9d; color: #00ff9d; width: 100%; 
+            padding: 10px; font-family: 'Share Tech Mono'; box-sizing: border-box; outline: none; 
+        }
+        .input-group input:focus { box-shadow: 0 0 10px rgba(0, 255, 153, 0.5); }
+        .btn-launch { 
+            background: #00ff9d; color: #000; border: none; padding: 15px; width: 100%; 
+            font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; transition: 0.2s; 
+        }
+        .btn-launch:hover { background: #fff; box-shadow: 0 0 15px #fff; }
+
+        /* --- TACTICAL HUD --- */
         #terminal-grid {
-            display: grid;
+            display: none; /* Hidden until authenticated */
             grid-template-columns: 350px 1fr 400px;
             grid-template-rows: 60px 1fr;
-            height: 100vh;
-            gap: 2px;
-            background: #1a1c23;
+            height: 100vh; gap: 2px; background: #1a1c23;
         }
 
         .header-bar { 
@@ -31,13 +53,25 @@
         }
         #asset-drawer.open { right: 0; }
 
-        .btn-hex {
-            background: rgba(0, 255, 153, 0.1); border: 1px solid #00ff9d;
-            color: #00ff9d; padding: 5px 15px; cursor: pointer; font-family: 'Share Tech Mono';
-        }
+        .btn-hex { background: rgba(0, 255, 153, 0.1); border: 1px solid #00ff9d; color: #00ff9d; padding: 5px 15px; cursor: pointer; font-family: 'Share Tech Mono'; }
     </style>
 </head>
 <body>
+
+    <div id="login-screen">
+        <div class="setup-box">
+            <h2 style="margin-top:0; letter-spacing: 4px;">VOID-LINK</h2>
+            <p style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 30px;">SECURE GM NEURAL NETWORK</p>
+            
+            <div class="input-group">
+                <label>AUTHORIZATION / CALLSIGN</label>
+                <input type="text" id="char-name-input" placeholder="e.g. Fallon, Kaelen, Jax" onkeypress="if(event.key === 'Enter') establishLink()">
+            </div>
+            
+            <button class="btn-launch" onclick="establishLink()">INITIALIZE UPLINK</button>
+            <p style="font-size: 0.6rem; opacity: 0.5; margin-top: 15px;">New callsigns will automatically generate a manifest.</p>
+        </div>
+    </div>
 
     <div id="terminal-grid">
         <header class="header-bar">
@@ -50,17 +84,9 @@
             </nav>
         </header>
 
-        <section>
-            <iframe id="frame-char" class="module-frame"></iframe>
-        </section>
-
-        <section>
-            <iframe id="frame-map" class="module-frame"></iframe>
-        </section>
-
-        <section>
-            <iframe id="frame-journal" class="module-frame"></iframe>
-        </section>
+        <section><iframe id="frame-char" class="module-frame"></iframe></section>
+        <section><iframe id="frame-map" class="module-frame"></iframe></section>
+        <section><iframe id="frame-journal" class="module-frame"></iframe></section>
     </div>
 
     <div id="asset-drawer">
@@ -72,35 +98,44 @@
     </div>
 
     <script>
-        /**
-         * THE NEURAL BRIDGE
-         * Index.html (Google) defines 'charId'. We must grab it and pass it to all modules.
-         */
         const charId = window.charId || new URLSearchParams(window.location.search).get('id');
 
         function bootTerminal() {
             if (!charId) {
-                console.error("Critical Failure: No Character ID found.");
-                document.body.innerHTML = "<div style='color:red; padding:20px;'>FATAL ERROR: CHARACTER ID MISSING. ACCESS DENIED.</div>";
+                // If no character ID is present, show the login screen and hide the terminal
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('terminal-grid').style.display = 'none';
                 return;
             }
 
+            // If ID is present, hide login and show terminal
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('terminal-grid').style.display = 'grid';
             document.getElementById('char-display').innerText = `ID: ${charId.toUpperCase()}`;
 
-            // Inject URLs into Iframes with the ID parameter to maintain the sync session
             const query = `?id=${encodeURIComponent(charId)}`;
-            
             document.getElementById('frame-char').src = `modules/character-sheet/character-sheet.html${query}`;
             document.getElementById('frame-map').src = `modules/map/map.html${query}`;
             document.getElementById('frame-journal').src = `modules/journal/journal.html${query}`;
             document.getElementById('frame-assets').src = `modules/asset-browser/asset-browser.html${query}`;
         }
 
+        function establishLink() {
+            const name = document.getElementById('char-name-input').value.trim();
+            if (name) {
+                // Grab the current Google Web App URL (ignoring any existing parameters)
+                const baseUrl = window.location.href.split('?')[0];
+                // Redirect the player to the same page, but with their ID appended
+                window.location.href = `${baseUrl}?id=${encodeURIComponent(name)}`;
+            } else {
+                alert("Please enter a callsign to proceed.");
+            }
+        }
+
         function toggleAssets() {
             document.getElementById('asset-drawer').classList.toggle('open');
         }
 
-        // Initialize system
         window.onload = bootTerminal;
     </script>
 </body>
