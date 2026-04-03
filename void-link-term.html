@@ -96,47 +96,5 @@
         </div>
         <iframe id="frame-assets" class="module-frame" style="height: calc(100% - 70px);"></iframe>
     </div>
-
-    <script>
-        const charId = window.charId || new URLSearchParams(window.location.search).get('id');
-
-        function bootTerminal() {
-            if (!charId) {
-                // If no character ID is present, show the login screen and hide the terminal
-                document.getElementById('login-screen').style.display = 'flex';
-                document.getElementById('terminal-grid').style.display = 'none';
-                return;
-            }
-
-            // If ID is present, hide login and show terminal
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('terminal-grid').style.display = 'grid';
-            document.getElementById('char-display').innerText = `ID: ${charId.toUpperCase()}`;
-
-            const query = `?id=${encodeURIComponent(charId)}`;
-            document.getElementById('frame-char').src = `modules/character-sheet/character-sheet.html${query}`;
-            document.getElementById('frame-map').src = `modules/map/map.html${query}`;
-            document.getElementById('frame-journal').src = `modules/journal/journal.html${query}`;
-            document.getElementById('frame-assets').src = `modules/asset-browser/asset-browser.html${query}`;
-        }
-
-        function establishLink() {
-            const name = document.getElementById('char-name-input').value.trim();
-            if (name) {
-                // Grab the current Google Web App URL (ignoring any existing parameters)
-                const baseUrl = window.location.href.split('?')[0];
-                // Redirect the player to the same page, but with their ID appended
-                window.location.href = `${baseUrl}?id=${encodeURIComponent(name)}`;
-            } else {
-                alert("Please enter a callsign to proceed.");
-            }
-        }
-
-        function toggleAssets() {
-            document.getElementById('asset-drawer').classList.toggle('open');
-        }
-
-        window.onload = bootTerminal;
-    </script>
 </body>
 </html>
