@@ -5,7 +5,6 @@
  * 2. Create a new HTML file named 'Index' and paste the Index.html code into it.
  * 3. Deploy as a Web App (Execute as: Me, Who has access: Anyone with a Google Account).
  */
-
 function doGet(e) {
   const html = HtmlService.createTemplateFromFile('Index');
   html.charId = e.parameter.id || '';
