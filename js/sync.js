@@ -2,7 +2,8 @@
  * js/sync.js - DECENTRALIZED SAAS ADAPTER
  */
 const params = new URLSearchParams(window.location.search);
-const charId = params.get('id') || "Unknown_Pilot";
+// Grabs the ID from the host environment, fallback to URL params if testing locally
+const charId = window.charId || params.get('id') || "Unknown_Pilot";
 
 function saveStat(id, field, value) {
     google.script.run
@@ -37,11 +38,12 @@ async function triggerNeuralRoll(moveName, stat = 0, adds = 0) {
     const score = Math.min(10, d6 + stat + adds);
     
     let res = (score > c1 && score > c2) ? "STRONG HIT" : (score > c1 || score > c2) ? "WEAK HIT" : "MISS";
-    if (c1 === c2) res += " (MATCH!)";
-
-    const logEntry = `ROLL: ${moveName} | Result: ${res} ([${d6}]+${stat} vs ${c1},${c2})`;
-    saveStat(charId, "history_entry", logEntry);
-    return { result: res, details: `[${d6}] + ${stat} vs [${c1}, ${c2}]` };
+    if (c1 === c2) res += " (MATCH)";
+    
+    const details = `[D6: ${d6}] vs [C1: ${c1}, C2: ${c2}]`;
+    
+    // Log rolls to the archive automatically
+    sendToArchive(`Rolled ${moveName}: ${res} ${details}`);
+    
+    return { result: res, details: details, score: score };
 }
-
-console.log("Secure Neural Link: Central Core Synchronized.");
