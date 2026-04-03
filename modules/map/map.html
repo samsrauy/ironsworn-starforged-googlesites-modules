@@ -1,191 +1,104 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Nav-OS: Sector Paging</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="stylesheet" href="../../css/style.css">
+//Mental note: NEVER delete the ability to generate objects and NPCs. Refactor for integration, never strip away the ability to generate a "lived" sector.
+
+<div id="map-scope">
     <style>
-        html, body {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            background: #050508; color: #00ff9d; font-family: 'Share Tech Mono', monospace;
-            overflow: hidden; touch-action: none; display: flex;
-        }
-
-        #tactical-sidebar {
-            width: 300px; background: rgba(10, 10, 14, 0.95);
-            border-right: 1px solid #00ff9d; display: flex; flex-direction: column;
-            z-index: 200; box-shadow: 10px 0 20px rgba(0,0,0,0.5);
-        }
-        .sidebar-header { padding: 15px; border-bottom: 1px solid #1a1c23; }
-        .sidebar-content { padding: 15px; overflow-y: auto; flex-grow: 1; font-size: 0.8rem; }
-        .poi-card { background: #161922; border: 1px solid #454d5d; padding: 10px; margin-bottom: 10px; border-left: 3px solid #ff0055; }
-
-        #main-view { flex-grow: 1; position: relative; display: flex; flex-direction: column; }
-        .nav-header {
-            padding: 10px 20px; background: rgba(10, 10, 14, 0.9);
-            border-bottom: 1px solid #00ff9d; display: flex; justify-content: space-between; align-items: center;
-        }
-
-        #map-viewport {
-            flex-grow: 1; position: relative; cursor: crosshair;
-            background-image: radial-gradient(circle at 1px 1px, rgba(0, 255, 153, 0.08) 1px, transparent 0);
-            background-size: 60px 60px;
-        }
-
-        #ship-token { width: 40px; height: 40px; position: absolute; cursor: grab; z-index: 100; filter: drop-shadow(0 0 8px #00ff9d); }
-        .poi-token { width: 30px; height: 30px; position: absolute; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 50; }
-        
-        .sector-indicator { position: absolute; top: 10px; right: 10px; font-size: 0.6rem; color: #454d5d; }
-        .btn-scan { background: #ff0055; color: #fff; border: none; padding: 10px; font-family: 'Share Tech Mono'; cursor: pointer; width: 100%; font-weight: bold; }
+        #map-scope { width: 100%; height: 100%; background: #050508; color: #00ff9d; font-family: 'Share Tech Mono', monospace; display: flex; position: relative; overflow: hidden; }
+        #map-scope #tactical-sidebar { width: 300px; background: rgba(10, 10, 14, 0.95); border-right: 1px solid #00ff9d; display: flex; flex-direction: column; z-index: 20; }
+        #map-scope .poi-card { background: #161922; border: 1px solid #454d5d; padding: 10px; margin-bottom: 10px; border-left: 3px solid #ff0055; }
+        #map-scope #map-viewport { flex-grow: 1; position: relative; cursor: crosshair; background-image: radial-gradient(circle at 1px 1px, rgba(0, 255, 153, 0.08) 1px, transparent 0); background-size: 60px 60px; }
+        #map-scope #ship-token { width: 40px; height: 40px; position: absolute; cursor: grab; z-index: 100; filter: drop-shadow(0 0 8px #00ff9d); }
+        #map-scope .poi-token { width: 30px; height: 30px; position: absolute; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 50; font-size: 1.5rem; }
     </style>
-</head>
-<body>
 
     <div id="tactical-sidebar">
-        <div class="sidebar-header">
+        <div style="padding: 15px; border-bottom: 1px solid #1a1c23;">
             <div style="font-size: 0.6rem; opacity: 0.5;">CURRENT SECTOR</div>
             <div id="sector-coords" style="color:#00ff9d; margin-bottom:10px;">SEC: [0, 0]</div>
             <div id="poi-name" style="font-size: 1.2rem; color: #ff0055;">NO TARGET</div>
         </div>
-        <div id="poi-details" class="sidebar-content">Select POI for analysis.</div>
-        <div style="padding: 15px;">
-            <button class="btn-scan" onclick="generateSector()">SCAN NEW SECTOR</button>
-        </div>
+        <div id="poi-details" style="padding: 15px; overflow-y: auto; flex-grow: 1; font-size: 0.8rem;">Select POI for analysis.</div>
+        <div style="padding: 15px;"><button style="background: #ff0055; color: #fff; border: none; padding: 10px; width: 100%; cursor: pointer;" onclick="generateSector()">SCAN NEW SECTOR</button></div>
     </div>
 
-    <div id="main-view">
-        <div class="nav-header">
-            <div>NAV-OS // <span id="status-msg">READY</span></div>
+    <div style="flex-grow: 1; position: relative; display: flex; flex-direction: column;">
+        <div style="padding: 10px 20px; background: rgba(10, 10, 14, 0.9); border-bottom: 1px solid #00ff9d; display: flex; justify-content: space-between;">
+            <div>NAV-OS // <span id="map-status">READY</span></div>
             <div id="coords-display">LOC: [0, 0]</div>
         </div>
         <div id="map-viewport">
             <div id="ship-token"><svg viewBox="0 0 100 100"><polygon points="50,10 90,90 50,70 10,90" fill="#00ff9d"/></svg></div>
         </div>
     </div>
+</div>
 
 <script>
-    const ship = document.getElementById('ship-token');
-    const viewport = document.getElementById('map-viewport');
-    const gridScale = 60;
-    const sectorSize = 10; // 10x10 grid squares per sector
+    (function() {
+        const scope = document.getElementById('map-scope');
+        const ship = scope.querySelector('#ship-token');
+        const viewport = scope.querySelector('#map-viewport');
+        const gridScale = 60;
+        const sectorSize = 10;
+        let activeSector = { x: -1, y: -1 };
+        let isDragging = false;
 
-    let currentX = 0, currentY = 0;
-    let activeSector = { x: -1, y: -1 };
-    let mapPois = [];
-    let isDragging = false;
+        window.initMap = async function() {
+            try {
+                const stats = await loadStats(window.charId);
+                const coords = stats.map_coords ? stats.map_coords.split(',').map(Number) : [0, 0];
+                updateMapPosition(coords[0], coords[1], false);
+            } catch (e) { scope.querySelector('#map-status').innerText = "LINK ERROR"; }
+        };
 
-    async function init() {
-        try {
-            await window.parent.dataswornReady;
-            const stats = await window.parent.loadStats(window.parent.charId);
-            
-            if (stats && stats.map_coords) {
-                const [x, y] = stats.map_coords.split(',').map(Number);
-                updatePosition(x, y, false);
-            } else {
-                updatePosition(0, 0, false);
+        window.updateMapPosition = async function(x, y, shouldSave = true) {
+            const secX = Math.floor(x / sectorSize);
+            const secY = Math.floor(y / sectorSize);
+            ship.style.left = ((x % sectorSize) * gridScale + 10) + 'px';
+            ship.style.top = ((y % sectorSize) * gridScale + 10) + 'px';
+            scope.querySelector('#coords-display').innerText = `LOC: [${x}, ${y}]`;
+            scope.querySelector('#sector-coords').innerText = `SEC: [${secX}, ${secY}]`;
+
+            if (secX !== activeSector.x || secY !== activeSector.y) {
+                activeSector = { x: secX, y: secY };
+                await loadMapSectorData();
             }
-        } catch (e) { document.getElementById('status-msg').innerText = "LINK ERROR"; }
-    }
+            if (shouldSave) saveStat(window.charId, "map_coords", `${x},${y}`);
+        };
 
-    /**
-     * CORE LOGIC: Update position and check if we swapped sectors
-     */
-    async function updatePosition(x, y, shouldSave = true) {
-        currentX = x;
-        currentY = y;
+        window.loadMapSectorData = async function() {
+            const stats = await loadStats(window.charId);
+            const sectorData = stats[`sector_${activeSector.x}_${activeSector.y}`];
+            const pois = sectorData ? JSON.parse(sectorData) : [];
+            viewport.querySelectorAll('.poi-token').forEach(e => e.remove());
+            pois.forEach(poi => {
+                const el = document.createElement('div');
+                el.className = 'poi-token';
+                el.style.color = poi.type === 'star' ? '#fbbf24' : '#3b82f6';
+                el.style.left = (poi.x * gridScale + 15) + 'px';
+                el.style.top = (poi.y * gridScale + 15) + 'px';
+                el.innerHTML = poi.type === 'star' ? '★' : '●';
+                el.onclick = () => {
+                    scope.querySelector('#poi-name').innerText = poi.name.toUpperCase();
+                    scope.querySelector('#poi-details').innerHTML = `<div class="poi-card">${poi.desc}</div>`;
+                };
+                viewport.appendChild(el);
+            });
+        };
 
-        // Calculate current sector address
-        const secX = Math.floor(x / sectorSize);
-        const secY = Math.floor(y / sectorSize);
-
-        // Visual snap
-        const localX = x % sectorSize;
-        const localY = y % sectorSize;
-        ship.style.left = (localX * gridScale + 10) + 'px';
-        ship.style.top = (localY * gridScale + 10) + 'px';
-
-        document.getElementById('coords-display').innerText = `LOC: [${x}, ${y}]`;
-        document.getElementById('sector-coords').innerText = `SEC: [${secX}, ${secY}]`;
-
-        // If we entered a new sector, load its specific data
-        if (secX !== activeSector.x || secY !== activeSector.y) {
-            activeSector = { x: secX, y: secY };
-            await loadSectorData();
-        }
-
-        if (shouldSave) {
-            window.parent.saveStat(window.parent.charId, "map_coords", `${x},${y}`);
-        }
-    }
-
-    async function loadSectorData() {
-        document.getElementById('status-msg').innerText = "LOADING SECTOR...";
-        const sectorKey = `sector_${activeSector.x}_${activeSector.y}`;
-        
-        // We fetch the unique stat for THIS sector
-        const stats = await window.parent.loadStats(window.parent.charId);
-        const sectorData = stats[sectorKey];
-        
-        mapPois = sectorData ? JSON.parse(sectorData) : [];
-        renderPois();
-        document.getElementById('status-msg').innerText = "LINK ACTIVE";
-    }
-
-    function renderPois() {
-        document.querySelectorAll('.poi-token').forEach(e => e.remove());
-        mapPois.forEach(poi => {
-            const el = document.createElement('div');
-            el.className = `poi-token`;
-            el.style.color = poi.type === 'star' ? '#fbbf24' : '#3b82f6';
-            el.innerHTML = poi.type === 'star' ? '★' : '●';
-            // Position POI relative to the 10x10 sector grid
-            el.style.left = (poi.x * gridScale + 15) + 'px';
-            el.style.top = (poi.y * gridScale + 15) + 'px';
-            el.onclick = () => {
-                document.getElementById('poi-name').innerText = poi.name.toUpperCase();
-                document.getElementById('poi-details').innerHTML = `<div class="poi-card">${poi.desc}</div>`;
-            };
-            viewport.appendChild(el);
+        ship.onmousedown = () => isDragging = true;
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const rect = viewport.getBoundingClientRect();
+            ship.style.left = (e.clientX - rect.left - 20) + 'px';
+            ship.style.top = (e.clientY - rect.top - 20) + 'px';
         });
-    }
+        window.addEventListener('mouseup', () => {
+            if (!isDragging) return;
+            isDragging = false;
+            const lx = Math.round((parseInt(ship.style.left)-10) / gridScale);
+            const ly = Math.round((parseInt(ship.style.top)-10) / gridScale);
+            updateMapPosition((activeSector.x * sectorSize) + lx, (activeSector.y * sectorSize) + ly);
+        });
 
-    async function generateSector() {
-        document.getElementById('status-msg').innerText = "SCANNING...";
-        // Generate random POIs for this specific sector
-        const newPois = [
-            { x: Math.floor(Math.random()*10), y: Math.floor(Math.random()*10), type: 'star', name: "Alpha", desc: "Binary Star System" },
-            { x: Math.floor(Math.random()*10), y: Math.floor(Math.random()*10), type: 'planet', name: "Terra", desc: "Habitable World" }
-        ];
-        
-        const sectorKey = `sector_${activeSector.x}_${activeSector.y}`;
-        await window.parent.saveStat(window.parent.charId, sectorKey, JSON.stringify(newPois));
-        await loadSectorData();
-    }
-
-    // Drag Logic (Local Grid Snapping)
-    ship.onmousedown = () => isDragging = true;
-    window.onmousemove = (e) => {
-        if (!isDragging) return;
-        const rect = viewport.getBoundingClientRect();
-        ship.style.left = (e.clientX - rect.left - 20) + 'px';
-        ship.style.top = (e.clientY - rect.top - 20) + 'px';
-    };
-    window.onmouseup = () => {
-        if (!isDragging) return;
-        isDragging = false;
-        
-        // Calculate new global coordinates based on sector offset
-        const localX = Math.round((parseInt(ship.style.left)-10) / gridScale);
-        const localY = Math.round((parseInt(ship.style.top)-10) / gridScale);
-        
-        const globalX = (activeSector.x * sectorSize) + localX;
-        const globalY = (activeSector.y * sectorSize) + localY;
-        
-        updatePosition(globalX, globalY);
-    };
-
-    init();
+        initMap();
+    })();
 </script>
-</body>
-</html>
