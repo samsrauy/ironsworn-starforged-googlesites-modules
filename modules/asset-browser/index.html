@@ -34,26 +34,29 @@
     <script>
         console.log("Asset Browser: System Startup...");
 
+        // Optimized Search: Looks for anything with the 'asset_category' type
         function findInDatasworn(obj, targetType) {
             let results = [];
             if (!obj || typeof obj !== 'object') return results;
-            if (obj.type === targetType) results.push(obj);
+            
+            // If this object is what we want, grab it
+            if (obj.type === targetType) {
+                results.push(obj);
+            }
 
-            const branches = ['collections', 'contents', 'assets', 'categories'];
-            for (const key of branches) {
-                if (obj[key]) {
-                    for (const childKey in obj[key]) {
-                        results = results.concat(findInDatasworn(obj[key][childKey], targetType));
-                    }
+            // Iterate through all keys to find nested collections
+            for (const key in obj) {
+                if (typeof obj[key] === 'object') {
+                    results = results.concat(findInDatasworn(obj[key], targetType));
                 }
             }
             return results;
         }
 
         function init() {
-            // Check if variable exists AND if it has been populated by the fetch in datasworn.js
-            if (typeof datasworn === 'undefined' || datasworn === null || !datasworn.assets) {
-                console.warn("Asset Browser: Data Core still downloading or null. Retrying in 500ms...");
+            // Check if data is fully loaded
+            if (typeof datasworn === 'undefined' || datasworn === null) {
+                console.warn("Asset Browser: Data Core null. Retrying...");
                 setTimeout(init, 500);
                 return;
             }
@@ -61,16 +64,24 @@
             console.log("Asset Browser: Neural Link Confirmed. Mapping Assets...");
             
             try {
-                const categories = findInDatasworn(datasworn.assets, 'asset_category');
+                // Starforged Assets are usually in datasworn.assets
+                // We search the whole object just to be safe
+                const categories = findInDatasworn(datasworn, 'asset_category');
                 const select = document.getElementById('category-select');
                 
+                console.log(`Asset Browser: Found ${categories.length} categories.`);
+
                 if (!categories || categories.length === 0) {
-                    console.error("Asset Browser: Search returned 0 categories.");
+                    console.error("Asset Browser: Zero categories found. Checking schema structure...");
+                    console.log("Data Keys Available:", Object.keys(datasworn));
                     return;
                 }
 
+                // Sort alphabetically for the pilot's convenience
+                categories.sort((a, b) => a.name.localeCompare(b.name));
+
                 select.innerHTML = categories.map(cat => 
-                    `<option value="${cat._id}">${cat.name}</option>`
+                    `<option value="${cat._id}">${cat.name.toUpperCase()}</option>`
                 ).join('');
                 
                 renderAssets(categories[0]._id);
@@ -80,20 +91,26 @@
         }
 
         function renderAssets(catId) {
-            const categories = findInDatasworn(datasworn.assets, 'asset_category');
+            // Re-find the category object from the global data
+            const categories = findInDatasworn(datasworn, 'asset_category');
             const category = categories.find(c => c._id === catId);
             const grid = document.getElementById('asset-grid');
 
-            if (!category || !category.assets) return;
+            if (!category) return;
 
-            grid.innerHTML = Object.values(category.assets).map(asset => `
+            // Datasworn assets are stored in a 'contents' or 'assets' object
+            const assetList = category.contents || category.assets || {};
+            
+            grid.innerHTML = Object.values(assetList).map(asset => `
                 <div class="asset-card">
                     <div class="asset-type">${category.name}</div>
                     <h4>${asset.name}</h4>
                     <div class="ability"><strong>Requirement:</strong> ${asset.requirement || 'None'}</div>
-                    ${asset.abilities.map((ab, i) => `
-                        <div class="ability" style="opacity: ${i === 0 ? 1 : 0.6}">● ${ab.text}</div>
-                    `).join('')}
+                    ${asset.abilities ? asset.abilities.map((ab, i) => `
+                        <div class="ability" style="opacity: ${i === 0 ? 1 : 0.6}">
+                            ● ${ab.text || ab.description || 'Data missing'}
+                        </div>
+                    `).join('') : 'No abilities defined.'}
                     <button class="install-btn" onclick="claimAsset('${asset._id}', '${asset.name.replace(/'/g, "\\'")}')">INSTALL ASSET</button>
                 </div>
             `).join('');
@@ -102,13 +119,13 @@
         async function claimAsset(id, name) {
             if (confirm(`Install ${name} to ship systems?`)) {
                 if (typeof saveStat === 'function') {
-                    // Send to the Google Sheet history log
                     await saveStat(charId, "history_entry", `ASSET ACQUIRED: ${name}`);
                     alert(`${name} registered to Neural Link.`);
                 }
             }
         }
 
+        init();
         // Start the watch loop
         init();
     </script>
