@@ -27,3 +27,5 @@ A: Well, ehh..... no you're not exactly correct. What is the risk is the better 
 >No, sensitive data does not make a cleaver TTRPG riddle.
 ><br><br>That is all....
 
+<img width="75%" height="75%" alt="image" src="https://github.com/user-attachments/assets/0cadd84b-c95c-45c9-95dc-ab72d018abc7" />
+
