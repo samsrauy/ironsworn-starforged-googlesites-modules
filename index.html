@@ -121,6 +121,7 @@
                     const n = document.createElement('script');
                     if (old.src) n.src = old.src;
                     else n.textContent = old.textContent;
+                    console.log("Injecting script for:", path);
                     document.body.appendChild(n);
                 });
             } catch (e) {
