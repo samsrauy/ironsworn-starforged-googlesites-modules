@@ -15,6 +15,7 @@
             margin-bottom: 10px; font-family: 'Share Tech Mono', monospace; cursor: pointer; text-transform: uppercase;
         }
         #map-scope button:hover { background: #00ff9d; color: #000; }
+        #map-scope select:disabled, #map-scope button:disabled { opacity: 0.5; cursor: not-allowed; }
         
         #map-scope .data-card { background: #1a1c23; border: 1px solid #454d5d; padding: 10px; margin-bottom: 10px; border-left: 3px solid #00ff9d; }
         #map-scope .data-title { font-weight: bold; color: #bcdee7; font-family: 'Share Tech Mono'; margin-bottom: 5px; font-size: 1rem; }
@@ -72,12 +73,17 @@
             <option value="outlands" selected>REGION: OUTLANDS</option>
             <option value="expanse">REGION: EXPANSE</option>
         </select>
-        <button onclick="generateSector()">GENERATE SECTOR</button>
-        <button onclick="clearSector()" style="background: transparent; color: #ff0055; border-color: #ff0055;">PURGE NAV DATA</button>
+        <button id="btn-generate" onclick="generateSector()">GENERATE NEW SECTOR</button>
         
-        <div class="sidebar-header" style="margin-top:20px;">SECTOR DATA</div>
+        <div class="sidebar-header" style="margin-top:20px;">NAV ARCHIVES</div>
+        <select id="archive-select">
+            <option value="">-- NO ARCHIVES FOUND --</option>
+        </select>
+        <button id="btn-load" onclick="loadArchivedSector()">LOAD SELECTED</button>
+
+        <div class="sidebar-header" style="margin-top:20px;">LOCAL SENSORS</div>
         <div id="sector-info-container">
-            <div style="opacity: 0.5; text-align: center; margin-top: 20px;">NO SECTOR DATA</div>
+            <div style="opacity: 0.5; text-align: center; margin-top: 20px;">STANDBY</div>
         </div>
     </div>
 
@@ -94,11 +100,10 @@
         const passagesLayer = document.getElementById('passages-layer');
         const infoContainer = document.getElementById('sector-info-container');
         const viewport = document.getElementById('map-viewport');
+        const archiveSelect = document.getElementById('archive-select');
         
-        const GRID_SCALE = 60; // Represents 1 unit of distance
+        const GRID_SCALE = 60; 
         let activeSector = null;
-
-        // Dragging State
         let isDragging = false;
         let shipElement = null;
 
@@ -111,15 +116,20 @@
         window.initMap = async function() {
             try {
                 await window.dataswornReady;
-                const stats = await window.gLink.loadStatsServer(window.charId);
-                if (stats && stats.sector_data) {
-                    activeSector = JSON.parse(stats.sector_data);
-                    renderSector();
-                }
+                await refreshArchiveList();
             } catch (err) {
                 console.error("Map Module Link Failure:", err);
             }
         };
+
+        async function refreshArchiveList() {
+            const list = await window.gLink.getSectorListServer(window.charId);
+            if (list && list.length > 0) {
+                archiveSelect.innerHTML = list.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            } else {
+                archiveSelect.innerHTML = `<option value="">-- NO ARCHIVES --</option>`;
+            }
+        }
 
         function findOracle(idSnippet) {
             let result = null;
@@ -141,13 +151,14 @@
         }
 
         window.generateSector = async function() {
-            if (activeSector && !confirm("Warning: This will overwrite current sector nav data. Proceed?")) return;
+            if (activeSector && !confirm("Initialize new sector scan? Current view will be replaced.")) return;
             
             const region = document.getElementById('region-select').value;
             const rules = REGION_RULES[region];
             infoContainer.innerHTML = "<div>GENERATING...</div>";
 
             const sector = {
+                id: 'sec_' + Date.now(), // Unique Database ID
                 name: rollOracle("oracles/space/sector_name", "Uncharted Sector"),
                 region: region.toUpperCase(),
                 trouble: rollOracle("oracles/space/sector_trouble", "Unknown Threat"),
@@ -160,7 +171,6 @@
             const bounds = { w: 10, h: 8 };
             const minDistance = 2;
 
-            // Generate Settlements
             for (let i = 0; i < rules.settlements; i++) {
                 let x, y, valid;
                 let attempts = 0;
@@ -189,7 +199,6 @@
                 });
             }
 
-            // Generate Passages
             let passageCount = 0;
             if (sector.settlements.length > 1) {
                 const shuffled = [...sector.settlements].sort(() => 0.5 - Math.random());
@@ -204,7 +213,6 @@
                 passageCount++;
             }
 
-            // Generate Local Connection
             sector.connection = {
                 name: rollOracle("oracles/characters/name", "Unknown Contact"),
                 role: rollOracle("oracles/characters/role", "Scavenger"),
@@ -212,7 +220,6 @@
                 home: sector.settlements[0].name
             };
 
-            // FTL JUMP PLACEMENT (Collision Avoidance)
             let shipX, shipY, validJump;
             do {
                 validJump = true;
@@ -228,15 +235,28 @@
             renderSector();
             
             infoContainer.innerHTML = "<div>UPLINKING TO DRIVE...</div>";
-            await window.gLink.saveStatServer(window.charId, "sector_data", JSON.stringify(activeSector));
-            await window.gLink.logServer(window.charId, `Sector Generated: ${sector.name} [${sector.region}]`);
+            
+            // Save via new Archive Database method
+            await window.gLink.saveSectorServer(window.charId, sector.id, sector.name, JSON.stringify(activeSector));
+            await window.gLink.logServer(window.charId, `New Sector Charted: ${sector.name}`);
+            
+            // Refresh the dropdown to show the newly created sector
+            await refreshArchiveList();
+            archiveSelect.value = sector.id; // Select it automatically
         };
 
-        window.clearSector = async function() {
-            if(confirm("Purge local sector map data?")) {
-                activeSector = null;
+        window.loadArchivedSector = async function() {
+            const id = archiveSelect.value;
+            if (!id) return;
+            
+            infoContainer.innerHTML = "<div>DOWNLOADING NAV DATA...</div>";
+            const data = await window.gLink.loadSectorServer(window.charId, id);
+            
+            if (data) {
+                activeSector = data;
                 renderSector();
-                await window.gLink.saveStatServer(window.charId, "sector_data", "");
+            } else {
+                infoContainer.innerHTML = `<div style="color:#ff0055;">ERROR: ARCHIVE CORRUPTED</div>`;
             }
         };
 
@@ -245,11 +265,10 @@
             passagesLayer.innerHTML = '';
 
             if (!activeSector) {
-                infoContainer.innerHTML = `<div style="opacity: 0.5; text-align: center; margin-top: 20px;">NO SECTOR DATA</div>`;
+                infoContainer.innerHTML = `<div style="opacity: 0.5; text-align: center; margin-top: 20px;">STANDBY</div>`;
                 return;
             }
 
-            // Draw Sidebar Info
             let html = `
                 <div class="data-card" style="border-color: #fbbf24;">
                     <div class="data-title">${activeSector.name}</div>
@@ -266,7 +285,6 @@
                 </div>
             `;
 
-            // Draw Settlements
             activeSector.settlements.forEach(s => {
                 html += `
                     <div class="data-card">
@@ -289,7 +307,6 @@
 
             infoContainer.innerHTML = html;
 
-            // Draw Passages
             activeSector.passages.forEach(p => {
                 const s1 = activeSector.settlements.find(x => x.id === p[0]);
                 if (!s1) return;
@@ -316,22 +333,18 @@
                 passagesLayer.appendChild(line);
             });
 
-            // Draw Ship Token
             shipElement = document.createElement('div');
             shipElement.id = 'ship-token';
             shipElement.style.left = (activeSector.ship.x * GRID_SCALE) + 'px';
             shipElement.style.top = (activeSector.ship.y * GRID_SCALE) + 'px';
             contentLayer.appendChild(shipElement);
 
-            // Drag Events
             shipElement.onmousedown = () => isDragging = true;
         }
 
-        // Handle Ship Dragging & Snapping globally on the viewport
         viewport.addEventListener('mousemove', (e) => {
             if (!isDragging || !shipElement) return;
             const rect = viewport.getBoundingClientRect();
-            // Free move while dragging
             shipElement.style.left = (e.clientX - rect.left) + 'px';
             shipElement.style.top = (e.clientY - rect.top) + 'px';
         });
@@ -341,22 +354,17 @@
             isDragging = false;
             
             const rect = viewport.getBoundingClientRect();
-            const rawX = e.clientX - rect.left;
-            const rawY = e.clientY - rect.top;
-
-            // Snap to Grid Mathematics
-            const gridX = Math.round(rawX / GRID_SCALE);
-            const gridY = Math.round(rawY / GRID_SCALE);
+            const gridX = Math.round((e.clientX - rect.left) / GRID_SCALE);
+            const gridY = Math.round((e.clientY - rect.top) / GRID_SCALE);
 
             activeSector.ship.x = gridX;
             activeSector.ship.y = gridY;
 
-            // Snap token into place visually
             shipElement.style.left = (gridX * GRID_SCALE) + 'px';
             shipElement.style.top = (gridY * GRID_SCALE) + 'px';
 
-            // Save to network silently
-            await window.gLink.saveStatServer(window.charId, "sector_data", JSON.stringify(activeSector));
+            // Save ship movement to database automatically!
+            await window.gLink.saveSectorServer(window.charId, activeSector.id, activeSector.name, JSON.stringify(activeSector));
         });
 
         viewport.addEventListener('mouseleave', () => { isDragging = false; });
