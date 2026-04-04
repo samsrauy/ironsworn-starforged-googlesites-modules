@@ -56,12 +56,14 @@ window.gLink = {
         });
         
         if (result && result.status === "success") {
-            // Trigger your existing frontend function once data arrives
+            // Trigger your existing frontend function once data arrives (for backwards compatibility)
             if (typeof window.onStatsLoaded === "function") {
                 window.onStatsLoaded(JSON.stringify(result.data));
             }
+            return result.data; // <--- Returns data for modern modules using await
         } else {
             console.error("Sync: Load failed.", result);
+            return null;
         }
     },
 
