@@ -4,7 +4,6 @@
  */
 
 function doPost(e) {
-  // We parse the incoming payload
   let request;
   try {
     request = JSON.parse(e.postData.contents);
@@ -19,8 +18,8 @@ function doPost(e) {
     return createJsonResponse({ status: "error", message: "Missing action or id" });
   }
 
-  // Route the request based on the "action" flag
   try {
+    // Character Stats & Logging
     if (action === "saveStat") {
       const result = saveStat(id, request.field, request.value);
       return createJsonResponse({ status: result });
@@ -33,6 +32,19 @@ function doPost(e) {
       const result = writeLog(id, request.message);
       return createJsonResponse({ status: result });
     } 
+    // Sector Archives
+    else if (action === "saveSector") {
+      const result = saveSector(id, request.sectorId, request.sectorName, request.data);
+      return createJsonResponse({ status: result });
+    }
+    else if (action === "getSectorList") {
+      const list = getSectorList(id);
+      return createJsonResponse({ status: "success", data: list });
+    }
+    else if (action === "loadSector") {
+      const sectorData = loadSector(id, request.sectorId);
+      return createJsonResponse({ status: "success", data: sectorData });
+    }
     else {
       return createJsonResponse({ status: "error", message: "Unknown action" });
     }
@@ -41,13 +53,12 @@ function doPost(e) {
   }
 }
 
-// Helper function to format the output properly for cross-origin requests
 function createJsonResponse(responseObject) {
   return ContentService.createTextOutput(JSON.stringify(responseObject))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// --- DATABASE LOGIC ---
+// --- CHARACTER DATABASE LOGIC ---
 
 function saveStat(id, field, val) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -107,4 +118,57 @@ function writeLog(id, message) {
   
   DocumentApp.openById(docId).getBody().appendParagraph(`[${new Date().toLocaleString()}] ${id}: ${message}`);
   return "OK";
+}
+
+// --- SECTOR ARCHIVE LOGIC ---
+
+function getArchiveSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName("Sector_Archive");
+  if (!sheet) {
+    sheet = ss.insertSheet("Sector_Archive");
+    sheet.appendRow(["charId", "sector_id", "sector_name", "sector_data"]);
+  }
+  return sheet;
+}
+
+function saveSector(charId, sectorId, sectorName, sectorData) {
+  const sheet = getArchiveSheet();
+  const data = sheet.getDataRange().getValues();
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] == charId && data[i][1] == sectorId) {
+      sheet.getRange(i + 1, 3).setValue(sectorName);
+      sheet.getRange(i + 1, 4).setValue(sectorData);
+      return "SUCCESS";
+    }
+  }
+  
+  sheet.appendRow([charId, sectorId, sectorName, sectorData]);
+  return "SUCCESS";
+}
+
+function getSectorList(charId) {
+  const sheet = getArchiveSheet();
+  const data = sheet.getDataRange().getValues();
+  let list = [];
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] == charId) {
+      list.push({ id: data[i][1], name: data[i][2] });
+    }
+  }
+  return list; 
+}
+
+function loadSector(charId, sectorId) {
+  const sheet = getArchiveSheet();
+  const data = sheet.getDataRange().getValues();
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] == charId && data[i][1] == sectorId) {
+      return data[i][3]; 
+    }
+  }
+  return null;
 }
