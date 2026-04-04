@@ -19,7 +19,6 @@ function doPost(e) {
   }
 
   try {
-    // Character Stats & Logging
     if (action === "saveStat") {
       const result = saveStat(id, request.field, request.value);
       return createJsonResponse({ status: result });
@@ -32,7 +31,6 @@ function doPost(e) {
       const result = writeLog(id, request.message);
       return createJsonResponse({ status: result });
     } 
-    // Sector Archives
     else if (action === "saveSector") {
       const result = saveSector(id, request.sectorId, request.sectorName, request.data);
       return createJsonResponse({ status: result });
@@ -58,26 +56,46 @@ function createJsonResponse(responseObject) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// --- CHARACTER DATABASE LOGIC ---
+// --- CHARACTER DATABASE LOGIC (SELF-BUILDING) ---
 
 function saveStat(id, field, val) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let stats = ss.getSheetByName("Stat") || ss.insertSheet("Stat");
-  const data = stats.getDataRange().getValues();
-  const headers = data[0];
-  const colIdx = headers.indexOf(field);
+  let stats = ss.getSheetByName("Stat");
   
-  if (colIdx === -1) return "ERR_FIELD_NOT_FOUND";
+  // 1. Auto-create sheet if missing
+  if (!stats) {
+    stats = ss.insertSheet("Stat");
+    stats.appendRow(["id"]);
+  }
+
+  let data = stats.getDataRange().getValues();
+  if (data.length === 0) {
+    stats.appendRow(["id"]);
+    data = [["id"]];
+  }
+
+  let headers = data[0];
+  let colIdx = headers.indexOf(field);
+  
+  // 2. Auto-create column if it doesn't exist!
+  if (colIdx === -1) {
+    colIdx = headers.length;
+    stats.getRange(1, colIdx + 1).setValue(field);
+    headers.push(field);
+    data = stats.getDataRange().getValues(); // Refresh data
+  }
 
   const searchId = id.toString().trim().toLowerCase();
   let rowIdx = -1;
 
+  // 3. Find character row
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0].toString().trim().toLowerCase() === searchId) {
+    if (data[i][0] && data[i][0].toString().trim().toLowerCase() === searchId) {
       rowIdx = i + 1; break; 
     }
   }
 
+  // 4. Update or Create Row
   if (rowIdx !== -1) {
     stats.getRange(rowIdx, colIdx + 1).setValue(val);
   } else {
@@ -99,7 +117,7 @@ function loadStats(id) {
   const searchId = id.toString().trim().toLowerCase();
   
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0].toString().trim().toLowerCase() === searchId) {
+    if (data[i][0] && data[i][0].toString().trim().toLowerCase() === searchId) {
       let obj = {};
       headers.forEach((h, idx) => obj[h] = data[i][idx]);
       return obj;
