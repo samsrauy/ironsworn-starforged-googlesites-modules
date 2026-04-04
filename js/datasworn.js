@@ -9,8 +9,8 @@ window.dataswornCore = {
     init: async function() {
         console.log("Datasworn: Linking to Official Release via CDN...");
         
-        // Fetching the compiled NPM release as recommended by the repository README
-        const url = 'https://cdn.jsdelivr.net/npm/@datasworn/starforged/starforged.json';
+        // Fixed URL: Added the missing /json/ folder to the package path!
+        const url = 'https://cdn.jsdelivr.net/npm/@datasworn/starforged/json/starforged.json';
         
         try {
             const response = await fetch(url);
