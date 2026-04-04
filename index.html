@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <title>VOID-LINK // OS</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="js/sync.js"></script>
+    
     <style>
         :root { --neon: #00ff9d; --bg: #050508; --panel: #0b0d12; --border: #1a1c23; }
         body { margin: 0; background: var(--bg); color: #e0e0e0; font-family: monospace; overflow: hidden; }
@@ -47,19 +49,20 @@
     </div>
 
     <script>
-        // Check URL for existing login
+        // GLOBAL VARIABLE SETUP
         const urlParams = new URLSearchParams(window.location.search);
-        const charId = urlParams.get('id');
+        window.charId = urlParams.get('id');
 
-        if (charId) {
-            bootTerminal(charId);
+        // Boot if ID exists in URL
+        if (window.charId) {
+            bootTerminal(window.charId);
         }
 
         function login() {
             const name = document.getElementById('callsign-input').value.trim();
             const server = document.getElementById('server-url-input').value.trim();
             if (name) {
-                // Save the server URL to local browser storage so they don't have to type it every time
+                // Save the server URL to local browser storage
                 if (server) localStorage.setItem('voidLinkServer', server);
                 
                 // Reload the page with the ID in the URL
@@ -91,7 +94,7 @@
             document.getElementById('terminal-grid').style.display = 'grid';
             document.getElementById('char-display').innerText = `PILOT: ${id.toUpperCase()}`;
 
-            // We are on native GitHub now, so fetching modules is fast and reliable
+            // Fetch modules
             await Promise.all([
                 loadModule('frame-char', 'character-sheet/character-sheet.html'),
                 loadModule('frame-map', 'map/map.html'),
