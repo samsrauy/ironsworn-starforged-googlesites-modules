@@ -42,7 +42,8 @@
         window.initTracker = async function() {
             try {
                 await window.dataswornReady;
-                const stats = await loadStats(window.charId);
+                // Updated to use the new gLink bridge
+                const stats = await window.gLink.loadStatsServer(window.charId) || {};
                 myAssets = stats.assets ? JSON.parse(stats.assets) : [];
                 renderActiveAssets();
             } catch (e) {
@@ -109,11 +110,11 @@
 
         async function syncAssetChanges() {
             scope.querySelector('#sync-status').innerText = "UPLINKING...";
-            await saveStat(window.charId, "assets", JSON.stringify(myAssets));
+            // Updated to use the new gLink bridge
+            await window.gLink.saveStatServer(window.charId, "assets", JSON.stringify(myAssets));
             scope.querySelector('#sync-status').innerText = "SYSTEM ONLINE";
         }
 
-        // Initialize immediately
         initTracker();
     })();
 </script>
