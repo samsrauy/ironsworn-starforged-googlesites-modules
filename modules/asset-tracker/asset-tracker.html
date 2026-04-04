@@ -42,7 +42,6 @@
         window.initTracker = async function() {
             try {
                 await window.dataswornReady;
-                // Updated to use the new gLink bridge
                 const stats = await window.gLink.loadStatsServer(window.charId) || {};
                 myAssets = stats.assets ? JSON.parse(stats.assets) : [];
                 renderActiveAssets();
@@ -61,7 +60,8 @@
 
             container.innerHTML = '';
             myAssets.forEach((entry, index) => {
-                const assetData = findAssetInDatasworn(entry.id);
+                // Use the new Core API to find the specific asset
+                const assetData = window.dataswornCore.findNode(entry.id);
                 if (!assetData) return;
 
                 const card = document.createElement('div');
@@ -79,14 +79,6 @@
                 `;
                 container.appendChild(card);
             });
-        }
-
-        function findAssetInDatasworn(id) {
-            const collections = window.datasworn.asset_collections;
-            for (let cat in collections) {
-                if (collections[cat].contents[id]) return collections[cat].contents[id];
-            }
-            return null;
         }
 
         window.toggleAbility = async function(assetIdx, abilityIdx) {
@@ -110,7 +102,6 @@
 
         async function syncAssetChanges() {
             scope.querySelector('#sync-status').innerText = "UPLINKING...";
-            // Updated to use the new gLink bridge
             await window.gLink.saveStatServer(window.charId, "assets", JSON.stringify(myAssets));
             scope.querySelector('#sync-status').innerText = "SYSTEM ONLINE";
         }
