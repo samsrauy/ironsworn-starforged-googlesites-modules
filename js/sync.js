@@ -1,59 +1,81 @@
 /**
- * js/sync.js - NEURAL LINK ADAPTER
+ * VOID-LINK // SYNC MANAGER
+ * Communicates with the Game Master's Google Apps Script API.
  */
-// 1. Establish Identity
-const params = new URLSearchParams(window.location.search);
-window.charId = window.charId || params.get('id') || "Unknown_Pilot";
 
-// 2. Identify the Google Bridge
-// This check works whether we are in the App Script environment or the GitHub host
-const gLink = (typeof google !== 'undefined') ? google.script.run : null;
-
-function saveStat(id, field, value) {
-    if (!gLink) {
-        console.warn(`[OFFLINE] Save: ${field} = ${value}`);
-        return;
-    }
-    
-    gLink.withFailureHandler(err => console.error("Neural Link Save Failure:", err))
-         .saveStatServer(id, field, value);
-
-    if (field === "history_entry" || field === "journal") {
-        sendToArchive(value);
-    }
-}
-
-async function loadStats(id) {
-    return new Promise((resolve) => {
-        if (!gLink) {
-            console.warn("[OFFLINE] Loading Local Template");
-            return resolve({ id: id, edge:3, heart:2, iron:2, shadow:1, wits:1 });
+window.gLink = {
+    // Helper to get the server URL from local browser storage
+    getServerUrl: function() {
+        const url = localStorage.getItem('voidLinkServer');
+        if (!url) {
+            console.error("SYNC FATAL: No GM Server URL found. Please log out and provide a valid Web App URL.");
+            return null;
         }
+        return url;
+    },
 
-        gLink.withSuccessHandler(data => resolve(JSON.parse(data)))
-             .withFailureHandler(err => {
-                console.warn("Initializing New Character Template...");
-                resolve({ id: id });
-             })
-             .loadStatsServer(id);
-    });
-}
+    // Standardized network request function
+    sendRequest: async function(payload) {
+        const url = this.getServerUrl();
+        if (!url) return null;
 
-function sendToArchive(message) {
-    if (gLink) gLink.logServer(window.charId, message);
-}
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                // Sending as text/plain bypasses the Google Apps Script CORS preflight issue
+                headers: { "Content-Type": "text/plain" },
+                body: JSON.stringify(payload)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error("SYNC NETWORK ERROR:", error);
+            return null;
+        }
+    },
 
-async function triggerNeuralRoll(moveName, stat = 0, adds = 0) {
-    const d6 = Math.floor(Math.random() * 6) + 1;
-    const c1 = Math.floor(Math.random() * 10) + 1;
-    const c2 = Math.floor(Math.random() * 10) + 1;
-    const score = Math.min(10, d6 + stat + adds);
-    
-    let res = (score > c1 && score > c2) ? "STRONG HIT" : (score > c1 || score > c2) ? "WEAK HIT" : "MISS";
-    if (c1 === c2) res += " (MATCH)";
-    
-    const details = `[D6: ${d6}] vs [C1: ${c1}, C2: ${c2}]`;
-    sendToArchive(`Rolled ${moveName}: ${res} ${details}`);
-    
-    return { result: res, details: details, score: score };
-}
+    saveStatServer: async function(id, field, val) {
+        console.log(`Sync: Saving ${field} for ${id}...`);
+        const result = await this.sendRequest({
+            action: "saveStat",
+            id: id,
+            field: field,
+            value: val
+        });
+        if (result && result.status === "SUCCESS") {
+            console.log("Sync: Save successful.");
+        } else {
+            console.error("Sync: Save failed.", result);
+        }
+    },
+
+    loadStatsServer: async function(id) {
+        console.log(`Sync: Loading stats for ${id}...`);
+        const result = await this.sendRequest({
+            action: "loadStats",
+            id: id
+        });
+        
+        if (result && result.status === "success") {
+            // Trigger your existing frontend function once data arrives
+            if (typeof window.onStatsLoaded === "function") {
+                window.onStatsLoaded(JSON.stringify(result.data));
+            }
+        } else {
+            console.error("Sync: Load failed.", result);
+        }
+    },
+
+    logServer: async function(id, msg) {
+        console.log(`Sync: Writing log for ${id}...`);
+        const result = await this.sendRequest({
+            action: "logEntry",
+            id: id,
+            message: msg
+        });
+        if (result && result.status === "OK") {
+            console.log("Sync: Log written successfully.");
+        } else {
+            console.error("Sync: Log failed.", result);
+        }
+    }
+};
