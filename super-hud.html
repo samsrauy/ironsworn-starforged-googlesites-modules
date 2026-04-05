@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starforged VTT - Super HUD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --theme-color: #00ff9d;
+            --bg-color: #050508;
+            --panel-bg: rgba(11, 13, 18, 0.85);
+            --border-color: #1a1c23;
+            --text-main: #aab;
+            --text-bright: #bcdee7;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color);
+            color: var(--theme-color);
+            font-family: 'Exo 2', sans-serif;
+            overflow: hidden; /* No scrolling on the main window */
+        }
+
+        /* --- THE INFINITE MAP PLACEHOLDER --- */
+        #viewport-background {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(circle at center, #0a0c10 0%, #020204 100%);
+            z-index: 1;
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column;
+        }
+        
+        /* Just a fun grid to simulate the map being huge */
+        .mock-grid {
+            width: 200vw; height: 200vh;
+            background-image: 
+                linear-gradient(rgba(0, 255, 153, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 153, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            position: absolute;
+        }
+        
+        #viewport-background h1 { font-family: 'Share Tech Mono'; color: rgba(0,255,153,0.2); font-size: 4rem; letter-spacing: 10px; margin: 0; z-index: 2;}
+        #viewport-background p { color: rgba(170, 170, 187, 0.5); z-index: 2;}
+
+        /* --- HUD BUTTONS --- */
+        .hud-btn {
+            position: absolute; z-index: 100;
+            background: #161922; border: 1px solid var(--border-color);
+            color: var(--theme-color); font-family: 'Share Tech Mono', monospace;
+            padding: 15px 25px; cursor: pointer; text-transform: uppercase;
+            font-size: 1rem; font-weight: bold; letter-spacing: 2px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(0,0,0,0.8);
+        }
+        .hud-btn:hover { background: var(--theme-color); color: #000; box-shadow: 0 0 20px rgba(0,255,153,0.4); }
+        .hud-btn.active { background: var(--theme-color); color: #000; border-color: #fff; }
+
+        /* Positioning the 4 buttons */
+        .btn-tl { top: 20px; left: 20px; border-left: 4px solid var(--theme-color); }
+        .btn-tr { top: 20px; right: 20px; border-right: 4px solid var(--theme-color); }
+        .btn-bl { bottom: 20px; left: 20px; border-left: 4px solid #3b82f6; color: #3b82f6; }
+        .btn-bl:hover, .btn-bl.active { background: #3b82f6; color: #000; box-shadow: 0 0 20px rgba(59,130,246,0.4); }
+        .btn-br { bottom: 20px; right: 20px; border-right: 4px solid #ff0055; color: #ff0055; }
+        .btn-br:hover, .btn-br.active { background: #ff0055; color: #000; box-shadow: 0 0 20px rgba(255,0,85,0.4); }
+
+
+        /* --- SLIDING PANELS --- */
+        .hud-panel {
+            position: absolute; z-index: 90;
+            background: var(--panel-bg);
+            backdrop-filter: blur(8px); /* The Glassmorphism effect */
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid var(--border-color);
+            padding: 80px 30px 30px 30px; /* Top padding makes room for the buttons */
+            box-sizing: border-box;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+            opacity: 0;
+            overflow-y: auto;
+        }
+
+        /* Panel specific sizing and animation start points */
+        #panel-tl { top: 0; left: 0; width: 450px; height: 100vh; transform: translateX(-100%); border-right: 1px solid var(--theme-color); }
+        #panel-tr { top: 0; right: 0; width: 600px; height: 100vh; transform: translateX(100%); border-left: 1px solid var(--theme-color); }
+        #panel-bl { bottom: 0; left: 0; width: 400px; height: 70vh; transform: translateY(100%); border-top: 1px solid #3b82f6; border-right: 1px solid #3b82f6; border-top-right-radius: 20px; }
+        #panel-br { bottom: 0; right: 0; width: 450px; height: 60vh; transform: translateY(100%); border-top: 1px solid #ff0055; border-left: 1px solid #ff0055; border-top-left-radius: 20px; }
+
+        /* The class toggled by JS to slide them in */
+        .hud-panel.open { transform: translate(0, 0); opacity: 1; box-shadow: 0 0 50px rgba(0,0,0,0.9); }
+
+        /* Custom Scrollbars for the panels */
+        .hud-panel::-webkit-scrollbar { width: 8px; }
+        .hud-panel::-webkit-scrollbar-track { background: #0b0d12; }
+        .hud-panel::-webkit-scrollbar-thumb { background: #454d5d; border-radius: 4px; }
+
+        /* Panel Internal Styling (Mockup) */
+        .panel-header { font-size: 0.8rem; letter-spacing: 4px; color: #454d5d; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px; text-transform: uppercase; }
+        .mock-box { background: #161922; border: 1px solid var(--border-color); padding: 15px; margin-bottom: 15px; border-left: 3px solid var(--theme-color); color: var(--text-main); font-size: 0.9rem;}
+        .mock-box h3 { margin: 0 0 10px 0; color: var(--text-bright); font-family: 'Share Tech Mono'; font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+
+    <div id="viewport-background">
+        <div class="mock-grid"></div>
+        <h1>SECTOR MAP</h1>
+        <p>[ Map.html canvas will be injected here ]</p>
+    </div>
+
+    <button class="hud-btn btn-tl" id="btn-tl" onclick="togglePanel('tl')">☰ VITALS</button>
+    <button class="hud-btn btn-tr" id="btn-tr" onclick="togglePanel('tr')">DATABANKS ☰</button>
+    <button class="hud-btn btn-bl" id="btn-bl" onclick="togglePanel('bl')">▲ NAV-COMP</button>
+    <button class="hud-btn btn-br" id="btn-br" onclick="togglePanel('br')">COMMS ▲</button>
+
+    <div id="panel-tl" class="hud-panel">
+        <div class="panel-header" style="color: var(--theme-color);">PILOT VITALS</div>
+        <div class="mock-box">
+            <h3>MOMENTUM</h3>
+            <p>Current: +4 | Max: +10 | Reset: +2</p>
+        </div>
+        <div class="mock-box">
+            <h3>HEALTH</h3>
+            <p>Status: Unharmed (5/5)</p>
+        </div>
+        <div class="mock-box">
+            <h3>SPIRIT</h3>
+            <p>Status: Shaken (3/5)</p>
+        </div>
+        <div class="mock-box">
+            <h3>SUPPLY</h3>
+            <p>Status: Diminished (2/5)</p>
+        </div>
+    </div>
+
+    <div id="panel-tr" class="hud-panel">
+        <div class="panel-header" style="color: var(--theme-color);">ASSET DATABANKS</div>
+        <div class="mock-box">
+            <h3>STARSHIP: VANGUARD</h3>
+            <p>[Asset Tracker HTML will inject here]</p>
+        </div>
+        <div class="mock-box">
+            <h3>MODULE: SENSOR ARRAY</h3>
+            <p>When you Gather Information using your ship's sensors, add +1.</p>
+        </div>
+        <div class="mock-box" style="height: 400px;">
+            <h3>COMPENDIUM BROWSER</h3>
+            <p>[Full Oracle Database goes here. Notice how massive this panel is for comfortable reading!]</p>
+        </div>
+    </div>
+
+    <div id="panel-bl" class="hud-panel" style="border-top-color: #3b82f6; border-right-color: #3b82f6;">
+        <div class="panel-header" style="color: #3b82f6;">TACTICAL NAVIGATION</div>
+        <div class="mock-box" style="border-left-color: #3b82f6;">
+            <h3>REGION ALIGNMENT</h3>
+            <p>[Map.html Sidebar Controls will inject here]</p>
+            <p>Generate Sector | Load Archive</p>
+        </div>
+        <div class="mock-box" style="border-left-color: #3b82f6;">
+            <h3>LOCAL SENSORS</h3>
+            <p>Standby for scan...</p>
+        </div>
+    </div>
+
+    <div id="panel-br" class="hud-panel" style="border-top-color: #ff0055; border-left-color: #ff0055;">
+        <div class="panel-header" style="color: #ff0055;">CAPTAIN'S LOG</div>
+        <div class="mock-box" style="border-left-color: #ff0055; height: 250px;">
+            <h3>TRANSMISSION LOG</h3>
+            <p style="color: #aaa;">> Arrived in the Terminus sector.</p>
+            <p style="color: #aaa;">> Scanners picking up anomalous signature.</p>
+            <p style="color: #00ff9d;">> Rolled: Pay the Price. Result: 42.</p>
+        </div>
+        <input type="text" placeholder="Enter log entry..." style="width: 100%; padding: 10px; background: #020204; border: 1px solid #ff0055; color: #fff; font-family: 'Share Tech Mono'; box-sizing: border-box;">
+    </div>
+
+    <script>
+        // Simple function to slide panels in and out
+        function togglePanel(cornerId) {
+            const panel = document.getElementById('panel-' + cornerId);
+            const btn = document.getElementById('btn-' + cornerId);
+            
+            // Check if it's currently open
+            const isOpen = panel.classList.contains('open');
+
+            // If it's closed, open it. If it's open, close it.
+            if (isOpen) {
+                panel.classList.remove('open');
+                btn.classList.remove('active');
+            } else {
+                panel.classList.add('open');
+                btn.classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>
