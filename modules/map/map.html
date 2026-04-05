@@ -140,9 +140,9 @@
         let dragStartY = 0;
 
         const REGION_RULES = {
-            'terminus': { settlements: 5, passages: 4 },
-            'outlands': { settlements: 4, passages: 3 },
-            'expanse':  { settlements: 3, passages: 2 }
+            'terminus': { settlements: 6, passages: 4 },
+            'outlands': { settlements: 5, passages: 3 },
+            'expanse':  { settlements: 4, passages: 2 }
         };
 
         const charNames = ["Jax", "Kaelen", "Lyra", "Voss", "Sira", "Tark", "Rian", "Cora", "Dax", "Elara", "Zane", "Nova", "Kian"];
@@ -151,7 +151,7 @@
 
         const locRolls = ["Deep Space Station", "Orbital Habitat", "Asteroid Base", "Planetary Settlement", "Gas Giant Refinery"];
         const planetRolls = ["Desert World", "Ice World", "Furnace World", "Jungle World", "Ocean World", "Rocky World", "Toxic World", "Shattered World"];
-        const anomalyRolls = ["Black Hole", "Neutron Star", "Asteroid Belt", "Ion Storm", "Stellar Nebula", "Red Dwarf Star", "Pulsar"];
+        const anomalyRolls = ["Black Hole", "Neutron Star", "Red Dwarf Star", "Pulsar"]; // Nebulas handled separately now
 
         const WIKI_LINKS = {
             "Black Hole": "https://en.wikipedia.org/wiki/Black_hole",
@@ -191,11 +191,7 @@
         function generateStarscape() {
             const bg = document.getElementById('starscape');
             bg.innerHTML = '';
-            const nebX = Math.floor(Math.random() * 100);
-            const nebY = Math.floor(Math.random() * 100);
-            bg.style.backgroundImage = `radial-gradient(circle at ${nebX}% ${nebY}%, rgba(0, 150, 255, 0.05) 0%, transparent 60%)`;
-            
-            for(let i=0; i<100; i++) {
+            for(let i=0; i<150; i++) {
                 const star = document.createElement('div');
                 const size = Math.random() * 2 + 1;
                 star.style.position = 'absolute';
@@ -220,12 +216,10 @@
         function drawGrid() {
             const gridLayer = document.getElementById('grid-layer');
             gridLayer.innerHTML = '';
-            
             for(let gx=0; gx<=35; gx++) {
                 for(let gy=0; gy<=25; gy++) {
                     const center = getHexPixel(gx, gy);
                     const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-                    
                     let points = [];
                     for(let i=0; i<6; i++) {
                         const angle_rad = (Math.PI / 180) * (60 * i);
@@ -257,20 +251,16 @@
 
         window.editSectorField = async function(fieldPath, newValue, isSettlement = false, settlementIndex = null) {
             if(!activeSector) return;
-            
-            if (isSettlement && settlementIndex !== null) {
-                activeSector.settlements[settlementIndex][fieldPath] = newValue;
-            } else {
+            if (isSettlement && settlementIndex !== null) activeSector.settlements[settlementIndex][fieldPath] = newValue;
+            else {
                 let parts = fieldPath.split('.');
                 if(parts.length === 1) activeSector[parts[0]] = newValue;
                 else if (parts.length === 2) activeSector[parts[0]][parts[1]] = newValue;
             }
-
             statusMsg.innerText = "UPLINKING...";
             await window.gLink.saveSectorServer(window.charId, activeSector.id, activeSector.name, JSON.stringify(activeSector));
             statusMsg.innerText = "STANDBY";
-            refreshArchiveList(); 
-            renderSector(); 
+            refreshArchiveList(); renderSector(); 
         };
 
         window.generateSector = async function() {
@@ -280,76 +270,164 @@
             const rules = REGION_RULES[region];
             statusMsg.innerText = "GENERATING...";
 
-            let sName = rollOracle("sector_name", "");
-            if (!sName || sName === "") sName = secPrefix[Math.floor(Math.random()*secPrefix.length)] + " " + secSuffix[Math.floor(Math.random()*secSuffix.length)];
+            let sName = rollOracle("sector_name", secPrefix[Math.floor(Math.random()*secPrefix.length)] + " " + secSuffix[Math.floor(Math.random()*secSuffix.length)]);
+            
+            // Generate Environmental Background (Nebula)
+            let isNebula = Math.random() < 0.35;
+            let nebulaData = null;
+            if (isNebula) {
+                const colors = [
+                    "rgba(139, 92, 246, 0.15)", // Purple
+                    "rgba(59, 130, 246, 0.15)", // Blue
+                    "rgba(16, 185, 129, 0.15)", // Green
+                    "rgba(244, 63, 94, 0.15)"   // Rose
+                ];
+                nebulaData = {
+                    name: "Stellar Nebula",
+                    x: Math.floor(Math.random() * 60) + 20, 
+                    y: Math.floor(Math.random() * 60) + 20,
+                    size: Math.floor(Math.random() * 40) + 30,
+                    color: colors[Math.floor(Math.random() * colors.length)]
+                };
+            }
 
-            const bounds = { w: 12, h: 8 }; 
-            const minDistance = 2;
-
+            const bounds = { w: 18, h: 12 }; 
             const sector = {
                 id: 'sec_' + Date.now(), 
                 name: sName, region: region.toUpperCase(),
                 trouble: rollOracle("sector_trouble", "Space is vast and unforgiving."),
+                nebula: nebulaData,
                 settlements: [], passages: [], connection: null,
                 ship: { x: 0, y: 0 }
             };
 
-            // Guarantee a minimum amount of space clutter by running an extra +1 loop
-            for (let i = 0; i < rules.settlements + 1; i++) {
-                let x, y, valid; let attempts = 0;
-                do {
-                    valid = true;
-                    x = Math.floor(Math.random() * bounds.w) + 1;
-                    y = Math.floor(Math.random() * bounds.h) + 1;
-                    for (let s of sector.settlements) {
-                        if (Math.hypot(s.x - x, s.y - y) < minDistance) { valid = false; break; }
-                    }
-                    attempts++;
-                } while (!valid && attempts < 100);
+            // NEW MULTI-PASS GENERATION ALGORITHM
+            let idCounter = 0;
+            const objectsToGen = rules.settlements + 3; // Enforce minimum clutter
 
-                let poiCategory = Math.random();
-                let loc, name, planetType, auth, proj, pop, renderType;
-
-                if (poiCategory < 0.10) { 
-                    loc = "Derelict Spacecraft"; name = rollOracle("derelict_name", "Unknown Ghost Ship");
-                    planetType = "N/A"; auth = "N/A"; proj = "N/A"; pop = "None"; renderType = "derelict";
-                } else if (poiCategory < 0.15) { 
-                    loc = "Precursor Vault"; name = rollOracle("precursor_name", "Alien Construct");
-                    planetType = "N/A"; auth = "N/A"; proj = "N/A"; pop = "None"; renderType = "precursor";
-                } else if (poiCategory < 0.20) { 
-                    loc = "Asteroid Swarm"; name = rollOracle("asteroid_name", "Uncharted Debris");
-                    planetType = "N/A"; auth = "N/A"; proj = "N/A"; pop = "None"; renderType = "asteroid";
-                } else if (poiCategory < 0.25) { 
-                    loc = "Anomalous Signature"; name = "Unknown Contact";
-                    planetType = "N/A"; auth = "N/A"; proj = "N/A"; pop = "None"; renderType = "unknown";
-                } else if (poiCategory < 0.35) { 
-                    loc = "Stellar Anomaly";
-                    name = rollOracle("anomaly_name", anomalyRolls[Math.floor(Math.random() * anomalyRolls.length)]);
-                    planetType = "N/A"; auth = "N/A"; proj = "N/A"; pop = "None"; renderType = "anomaly";
-                } else if (poiCategory < 0.50) { 
-                    loc = "Uncharted Planet";
-                    planetType = rollOracle("planet_class", planetRolls[Math.floor(Math.random() * planetRolls.length)]);
-                    name = rollOracle("planet_name", `System ${secPrefix[Math.floor(Math.random()*secPrefix.length)]}-${i+1}`);
-                    auth = "N/A"; proj = "N/A"; pop = "None"; renderType = "planet";
-                } else { 
-                    loc = rollOracle("settlement_location", locRolls[Math.floor(Math.random() * locRolls.length)]);
-                    name = rollOracle("settlement_name", `Outpost ${i+1}`);
-                    planetType = loc.toLowerCase().includes("planet") ? rollOracle("planet_class", planetRolls[Math.floor(Math.random() * planetRolls.length)]) : "N/A";
-                    auth = rollOracle("authority", "None");
-                    proj = rollOracle("settlement_projects", "Survival");
-                    pop = rollOracle("population", "Hundreds");
-                    renderType = "settlement";
+            // Pass 1: Massive Gravity Wells (Stars & Black Holes)
+            for (let i = 0; i < objectsToGen; i++) {
+                if (Math.random() > 0.25) continue; // Only 25% chance per slot to be a star
+                
+                let x = Math.floor(Math.random() * bounds.w) + 1;
+                let y = Math.floor(Math.random() * bounds.h) + 1;
+                
+                // Enforce massive exclusion zone (4 hexes) so nothing spawns near it
+                let valid = true;
+                for (let s of sector.settlements) {
+                    if (Math.hypot(s.x - x, s.y - y) < 4) { valid = false; break; }
                 }
+                if (!valid) continue;
 
+                let name = rollOracle("anomaly_name", anomalyRolls[Math.floor(Math.random() * anomalyRolls.length)]);
                 sector.settlements.push({
-                    id: i, x: x, y: y,
-                    name: name, location: loc,
-                    population: pop, authority: auth,
-                    projects: proj, planet: planetType, renderType: renderType
+                    id: idCounter++, x: x, y: y, name: name, location: "Stellar Anomaly",
+                    population: "None", authority: "N/A", projects: "N/A", planet: "N/A", renderType: "anomaly"
                 });
+
+                // 20% chance for Binary Star System! Drops right next to it.
+                if (name.includes("Star") && Math.random() < 0.20) {
+                    sector.settlements.push({
+                        id: idCounter++, x: x+1, y: y, name: "Binary Companion", location: "Stellar Anomaly",
+                        population: "None", authority: "N/A", projects: "N/A", planet: "N/A", renderType: "anomaly"
+                    });
+                }
             }
 
-            // Only generate structural passages between true settlements or planets
+            // Pass 2: Planets
+            for (let i = 0; i < objectsToGen; i++) {
+                if (Math.random() > 0.40) continue; // 40% chance
+                
+                let attempts = 0, valid = false, x, y;
+                while (!valid && attempts < 50) {
+                    x = Math.floor(Math.random() * bounds.w) + 1;
+                    y = Math.floor(Math.random() * bounds.h) + 1;
+                    valid = true;
+                    // Planets need to be 3 spaces away from gravity wells, 2 from other planets
+                    for (let s of sector.settlements) {
+                        let reqDist = s.renderType === "anomaly" ? 3 : 2;
+                        if (Math.hypot(s.x - x, s.y - y) < reqDist) { valid = false; break; }
+                    }
+                    attempts++;
+                }
+                if (valid) {
+                    let pType = rollOracle("planet_class", planetRolls[Math.floor(Math.random() * planetRolls.length)]);
+                    sector.settlements.push({
+                        id: idCounter++, x: x, y: y, 
+                        name: rollOracle("planet_name", `System ${secPrefix[Math.floor(Math.random()*secPrefix.length)]}`),
+                        location: "Uncharted Planet", planet: pType,
+                        population: "None", authority: "N/A", projects: "N/A", renderType: "planet"
+                    });
+                }
+            }
+
+            // Pass 3: Asteroid Swarms (Bias toward Planets)
+            for (let i = 0; i < objectsToGen; i++) {
+                if (Math.random() > 0.3) continue;
+                
+                let x, y, valid = true;
+                
+                // 50% chance to intentionally spawn next to a planet (simulating rings/orbital debris)
+                const planets = sector.settlements.filter(s => s.renderType === "planet");
+                if (planets.length > 0 && Math.random() < 0.5) {
+                    let target = planets[Math.floor(Math.random() * planets.length)];
+                    x = target.x + (Math.random() > 0.5 ? 1 : -1);
+                    y = target.y;
+                } else {
+                    x = Math.floor(Math.random() * bounds.w) + 1;
+                    y = Math.floor(Math.random() * bounds.h) + 1;
+                }
+
+                // Make sure it doesn't spawn ON TOP of something else, or near a black hole
+                for (let s of sector.settlements) {
+                    if (s.x === x && s.y === y) valid = false;
+                    if (s.renderType === "anomaly" && Math.hypot(s.x - x, s.y - y) < 3) valid = false;
+                }
+                
+                if(valid) {
+                    sector.settlements.push({
+                        id: idCounter++, x: x, y: y, name: rollOracle("asteroid_name", "Uncharted Debris"), 
+                        location: "Asteroid Swarm", planet: "N/A", population: "None", authority: "N/A", projects: "N/A", renderType: "asteroid"
+                    });
+                }
+            }
+
+            // Pass 4: Everything Else (Stations, Derelicts, Precursors)
+            while (sector.settlements.length < objectsToGen) {
+                let x, y, valid = false, attempts = 0;
+                while (!valid && attempts < 50) {
+                    x = Math.floor(Math.random() * bounds.w) + 1;
+                    y = Math.floor(Math.random() * bounds.h) + 1;
+                    valid = true;
+                    for (let s of sector.settlements) {
+                        if (Math.hypot(s.x - x, s.y - y) < 2) valid = false;
+                    }
+                    attempts++;
+                }
+
+                if (valid) {
+                    let rnd = Math.random();
+                    let loc, name, renderType, pType = "N/A", auth = "N/A", proj = "N/A", pop = "None";
+                    
+                    if (rnd < 0.2) { loc = "Derelict Spacecraft"; name = "Unknown Ghost Ship"; renderType = "derelict"; }
+                    else if (rnd < 0.4) { loc = "Precursor Vault"; name = "Alien Construct"; renderType = "precursor"; }
+                    else if (rnd < 0.6) { loc = "Anomalous Signature"; name = "Unknown Contact"; renderType = "unknown"; }
+                    else {
+                        loc = rollOracle("settlement_location", locRolls[Math.floor(Math.random() * locRolls.length)]);
+                        name = rollOracle("settlement_name", `Outpost ${idCounter}`);
+                        pType = loc.toLowerCase().includes("planet") ? rollOracle("planet_class", planetRolls[Math.floor(Math.random() * planetRolls.length)]) : "N/A";
+                        auth = rollOracle("authority", "None"); proj = rollOracle("settlement_projects", "Survival"); pop = rollOracle("population", "Hundreds");
+                        renderType = "settlement";
+                    }
+
+                    sector.settlements.push({
+                        id: idCounter++, x: x, y: y, name: name, location: loc,
+                        population: pop, authority: auth, projects: proj, planet: pType, renderType: renderType
+                    });
+                } else { break; } // Map is full
+            }
+
+            // Passages & Connections
             const trueSettlements = sector.settlements.filter(s => s.renderType === "settlement" || s.renderType === "planet");
             let passageCount = 0;
             if (trueSettlements.length > 1) {
@@ -360,50 +438,24 @@
                     passageCount++;
                 }
             }
-            while (passageCount < rules.passages) {
-                let rndIdx = trueSettlements.length > 0 ? trueSettlements[Math.floor(Math.random() * trueSettlements.length)].id : sector.settlements[0].id;
-                sector.passages.push([rndIdx, "OFF_MAP"]);
-                passageCount++;
-            }
 
-            let connName = rollOracle("character_name", "");
-            if(!connName) connName = charNames[Math.floor(Math.random()*charNames.length)];
-            
-            // 30% chance the connection roams the map in an independent starship
             let connIsShip = Math.random() < 0.3;
-            let nX = 0, nY = 0;
-            if (connIsShip) {
-                nX = Math.floor(Math.random() * bounds.w) + 1;
-                nY = Math.floor(Math.random() * bounds.h) + 1;
-            }
-
             sector.connection = {
-                name: connName,
-                role: rollOracle("character_role", "Scavenger"),
-                rank: "Dangerous",
+                name: rollOracle("character_name", charNames[Math.floor(Math.random()*charNames.length)]),
+                role: rollOracle("character_role", "Scavenger"), rank: "Dangerous",
                 home: connIsShip ? "Independent Starship" : (trueSettlements[0]?.name || "Nomad"),
                 isShip: connIsShip,
-                x: nX, y: nY
+                x: connIsShip ? Math.floor(Math.random() * bounds.w)+1 : 0, 
+                y: connIsShip ? Math.floor(Math.random() * bounds.h)+1 : 0
             };
 
-            let shipX, shipY, validJump;
-            do {
-                validJump = true;
-                shipX = Math.floor(Math.random() * bounds.w) + 1;
-                shipY = Math.floor(Math.random() * bounds.h) + 1;
-                for (let s of sector.settlements) {
-                    if (s.x === shipX && s.y === shipY) { validJump = false; break; }
-                }
-            } while (!validJump);
-            sector.ship = { x: shipX, y: shipY };
-
+            sector.ship = { x: 5, y: 5 }; // Safe default start
+            
             activeSector = sector;
             renderSector(); 
             
             statusMsg.innerText = "UPLINKING...";
             await window.gLink.saveSectorServer(window.charId, sector.id, sector.name, JSON.stringify(activeSector));
-            await window.gLink.logServer(window.charId, `New Sector Charted: ${sector.name}`);
-            
             await refreshArchiveList();
             archiveSelect.value = sector.id; 
             statusMsg.innerText = "STANDBY";
@@ -412,79 +464,83 @@
         window.loadArchivedSector = async function() {
             const id = archiveSelect.value;
             if (!id) return;
-            
             statusMsg.innerText = "DOWNLOADING...";
             const data = await window.gLink.loadSectorServer(window.charId, id);
-            
-            if (data) {
-                activeSector = data;
-                renderSector();
-                statusMsg.innerText = "STANDBY";
-            } else {
-                statusMsg.innerText = "ARCHIVE CORRUPTED";
-            }
+            if (data) { activeSector = data; renderSector(); statusMsg.innerText = "STANDBY"; } 
+            else { statusMsg.innerText = "ARCHIVE CORRUPTED"; }
         };
+
+        // NEW: Hover Link Functions
+        window.highlightMapToken = function(id) {
+            const token = document.getElementById(`token-${id}`);
+            if (token) { token.style.transform = 'translate(-50%, -50%) scale(1.5)'; token.style.boxShadow = '0 0 20px #fff'; token.style.zIndex = '30'; }
+        }
+        window.unhighlightMapToken = function(id) {
+            const token = document.getElementById(`token-${id}`);
+            if (token) { token.style.transform = ''; token.style.boxShadow = ''; token.style.zIndex = ''; }
+        }
+        window.highlightSidebarCard = function(id) {
+            const card = document.getElementById(`card-${id}`);
+            if (card) { card.style.borderColor = '#fff'; card.style.backgroundColor = '#1f2937'; card.scrollIntoView({behavior: "smooth", block: "nearest"}); }
+        }
+        window.unhighlightSidebarCard = function(id) {
+            const card = document.getElementById(`card-${id}`);
+            if (card) { card.style.borderColor = ''; card.style.backgroundColor = ''; }
+        }
 
         function renderSector() {
             contentLayer.innerHTML = '';
             passagesLayer.innerHTML = '';
+            infoContainer.innerHTML = '';
 
-            if (!activeSector) {
-                infoContainer.innerHTML = `<div style="opacity: 0.5; text-align: center; margin-top: 20px;">STANDBY</div>`;
-                return;
+            // 1. Draw Nebula Background
+            const bg = document.getElementById('starscape');
+            generateStarscape(); // Reset base stars
+            if (activeSector.nebula) {
+                const neb = document.createElement('div');
+                neb.style.position = 'absolute';
+                neb.style.left = activeSector.nebula.x + '%';
+                neb.style.top = activeSector.nebula.y + '%';
+                neb.style.width = activeSector.nebula.size + 'vw';
+                neb.style.height = activeSector.nebula.size + 'vw';
+                neb.style.transform = 'translate(-50%, -50%)';
+                neb.style.background = `radial-gradient(circle, ${activeSector.nebula.color} 0%, transparent 70%)`;
+                neb.style.pointerEvents = 'none';
+                neb.style.zIndex = '0';
+                bg.appendChild(neb);
             }
+
+            if (!activeSector) return;
 
             let html = `
                 <div class="data-card" style="border-color: #fbbf24;">
                     <div class="data-title editable" contenteditable="true" spellcheck="false" onblur="editSectorField('name', this.innerText)">${activeSector.name}</div>
                     <span class="tag">${activeSector.region}</span>
+                    ${activeSector.nebula ? `<span class="tag" style="background:#4c1d95; color:#ddd; border-color:#8b5cf6;">NEBULA DETECTED</span>` : ''}
                 </div>
                 <div class="data-card" style="border-color: #ff0055;">
                     <div class="tag">SECTOR TROUBLE</div>
                     <div class="data-text editable" contenteditable="true" spellcheck="false" onblur="editSectorField('trouble', this.innerText)">${activeSector.trouble}</div>
                 </div>
-                <div class="data-card" style="border-color: #3b82f6;">
-                    <div class="tag">LOCAL CONNECTION</div>
-                    <div class="data-text">
-                        <b class="editable" contenteditable="true" spellcheck="false" onblur="editSectorField('connection.name', this.innerText)">${activeSector.connection.name}</b> 
-                        (<span class="editable" contenteditable="true" spellcheck="false" onblur="editSectorField('connection.role', this.innerText)">${activeSector.connection.role}</span>)
-                    </div>
-                    <div class="data-text">Rank: ${activeSector.connection.rank} | At: ${activeSector.connection.home}</div>
-                </div>
             `;
 
             activeSector.settlements.forEach((s, idx) => {
-                
-                let titleHtml = "";
-                let wikiUrl = null;
-
-                if (s.renderType === "anomaly") {
-                    for (let key in WIKI_LINKS) {
-                        if (s.name.includes(key)) {
-                            wikiUrl = WIKI_LINKS[key];
-                            break;
-                        }
-                    }
-                }
-
-                if (wikiUrl) {
-                    titleHtml = `<div class="data-title"><a href="${wikiUrl}" target="_blank" style="color: #8b5cf6; text-decoration: none; border-bottom: 1px dashed #8b5cf6;" title="Read about ${s.name} on Wikipedia">${s.name} ↗</a></div>`;
-                } else {
-                    titleHtml = `<div class="data-title editable" contenteditable="true" spellcheck="false" onblur="editSectorField('name', this.innerText, true, ${idx})">${s.name}</div>`;
-                }
+                let wikiUrl = WIKI_LINKS[s.name] || (s.location === "Stellar Anomaly" && WIKI_LINKS[Object.keys(WIKI_LINKS).find(k => s.name.includes(k))]);
+                let titleHtml = wikiUrl 
+                    ? `<div class="data-title"><a href="${wikiUrl}" target="_blank" style="color: #8b5cf6; text-decoration: none; border-bottom: 1px dashed #8b5cf6;">${s.name} ↗</a></div>`
+                    : `<div class="data-title editable" contenteditable="true" spellcheck="false" onblur="editSectorField('name', this.innerText, true, ${idx})">${s.name}</div>`;
 
                 let planetHtml = '';
                 if (s.planet !== 'N/A') {
                     let pUrl = PLANET_LINKS[s.planet];
-                    if (pUrl) {
-                        planetHtml = `<div class="data-text" style="color:#fbbf24;"><b>Planet:</b> <a href="${pUrl}" target="_blank" style="color:#fbbf24; text-decoration: none; border-bottom: 1px dashed #fbbf24;" title="Read about ${s.planet}s on Wikipedia">${s.planet} ↗</a></div>`;
-                    } else {
-                        planetHtml = `<div class="data-text" style="color:#fbbf24;"><b>Planet:</b> ${s.planet}</div>`;
-                    }
+                    planetHtml = pUrl 
+                        ? `<div class="data-text" style="color:#fbbf24;"><b>Planet:</b> <a href="${pUrl}" target="_blank" style="color:#fbbf24; text-decoration: none; border-bottom: 1px dashed #fbbf24;">${s.planet} ↗</a></div>`
+                        : `<div class="data-text" style="color:#fbbf24;"><b>Planet:</b> ${s.planet}</div>`;
                 }
 
+                // Add mouse events to the Card
                 html += `
-                    <div class="data-card">
+                    <div id="card-${s.id}" class="data-card" onmouseenter="highlightMapToken(${s.id})" onmouseleave="unhighlightMapToken(${s.id})">
                         ${titleHtml}
                         <div class="data-text"><b>Loc:</b> ${s.location}</div>
                         ${s.authority !== 'N/A' ? `<div class="data-text"><b>Auth:</b> <span class="editable" contenteditable="true" spellcheck="false" onblur="editSectorField('authority', this.innerText, true, ${idx})">${s.authority}</span></div>` : ''}
@@ -493,40 +549,33 @@
                     </div>
                 `;
 
-                // Token Generation & Space Clutter Injection
+                // Render Map Token
                 const token = document.createElement('div');
+                token.id = `token-${s.id}`;
                 token.className = 'poi-token';
                 const pos = getHexPixel(s.x, s.y);
                 token.style.left = pos.x + 'px';
                 token.style.top = pos.y + 'px';
 
-                // Style injection based on renderType
-                if (s.renderType === 'derelict') {
-                    token.classList.add('token-derelict');
-                } else if (s.renderType === 'precursor') {
-                    token.classList.add('token-precursor');
-                    token.style.backgroundColor = '#a855f7'; 
-                } else if (s.renderType === 'asteroid') {
-                    token.classList.add('token-asteroid');
-                    token.innerText = '✱';
-                } else if (s.renderType === 'unknown') {
-                    token.classList.add('token-unknown');
-                    token.innerText = '?';
-                } else if (s.renderType === 'planet') {
-                    token.style.borderColor = "#3b82f6";
-                    token.style.boxShadow = "0 0 10px rgba(59,130,246,0.3)";
-                } else if (s.renderType === 'anomaly') {
+                // Add mouse events to Token
+                token.onmouseenter = () => highlightSidebarCard(s.id);
+                token.onmouseleave = () => unhighlightSidebarCard(s.id);
+
+                if (s.renderType === 'derelict') token.classList.add('token-derelict');
+                else if (s.renderType === 'precursor') { token.classList.add('token-precursor'); token.style.backgroundColor = '#a855f7'; }
+                else if (s.renderType === 'asteroid') { token.classList.add('token-asteroid'); token.innerText = '✱'; }
+                else if (s.renderType === 'unknown') { token.classList.add('token-unknown'); token.innerText = '?'; }
+                else if (s.renderType === 'planet') { token.style.borderColor = "#3b82f6"; token.style.boxShadow = "0 0 10px rgba(59,130,246,0.3)"; }
+                else if (s.renderType === 'anomaly') {
                     if (s.name.includes("Black Hole")) { token.style.borderColor = "#8b5cf6"; token.style.backgroundColor = "#1e1b4b"; token.style.boxShadow = "0 0 15px #8b5cf6"; } 
                     else if (s.name.includes("Star") || s.name.includes("Pulsar")) { token.style.borderColor = "#fcd34d"; token.style.backgroundColor = "#b45309"; token.style.boxShadow = "0 0 20px #fcd34d"; } 
                     else { token.style.borderColor = "#a8a29e"; token.style.boxShadow = "0 0 10px rgba(168,162,158,0.3)"; }
                 }
 
-                // Add the label as a safe child element so innerText changes don't delete it
                 const labelDiv = document.createElement('div');
                 labelDiv.className = 'poi-label';
                 labelDiv.innerText = s.name;
                 token.appendChild(labelDiv);
-
                 contentLayer.appendChild(token);
             });
 
@@ -535,17 +584,9 @@
             activeSector.passages.forEach(p => {
                 const s1 = activeSector.settlements.find(x => x.id === p[0]);
                 if (!s1) return;
-
                 const pos1 = getHexPixel(s1.x, s1.y);
-
-                let pos2;
-                if (p[1] === "OFF_MAP") {
-                    pos2 = { x: pos1.x + (HEX_RADIUS * 6), y: pos1.y - (HEX_RADIUS * 4) };
-                } else {
-                    const s2 = activeSector.settlements.find(x => x.id === p[1]);
-                    pos2 = getHexPixel(s2.x, s2.y);
-                }
-
+                let pos2 = p[1] === "OFF_MAP" ? { x: pos1.x + (HEX_RADIUS * 6), y: pos1.y - (HEX_RADIUS * 4) } : getHexPixel(activeSector.settlements.find(x => x.id === p[1]).x, activeSector.settlements.find(x => x.id === p[1]).y);
+                
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 line.setAttribute('x1', pos1.x); line.setAttribute('y1', pos1.y);
                 line.setAttribute('x2', pos2.x); line.setAttribute('y2', pos2.y);
@@ -553,23 +594,6 @@
                 passagesLayer.appendChild(line);
             });
 
-            // Render roaming NPC Ship if they have one
-            if (activeSector.connection && activeSector.connection.isShip) {
-                const npcShip = document.createElement('div');
-                npcShip.className = 'npc-ship-token';
-                const nPos = getHexPixel(activeSector.connection.x, activeSector.connection.y);
-                npcShip.style.left = nPos.x + 'px';
-                npcShip.style.top = nPos.y + 'px';
-                
-                const nLabel = document.createElement('div');
-                nLabel.className = 'poi-label';
-                nLabel.innerText = activeSector.connection.name;
-                npcShip.appendChild(nLabel);
-                
-                contentLayer.appendChild(npcShip);
-            }
-
-            // Render Player Ship
             shipElement = document.createElement('div');
             shipElement.id = 'ship-token';
             const shipPos = getHexPixel(activeSector.ship.x, activeSector.ship.y);
@@ -577,91 +601,53 @@
             shipElement.style.top = shipPos.y + 'px';
             contentLayer.appendChild(shipElement);
 
-            shipElement.onmousedown = () => { 
-                isDragging = true; 
-                dragStartX = parseFloat(shipElement.style.left);
-                dragStartY = parseFloat(shipElement.style.top);
-            };
+            shipElement.onmousedown = () => { isDragging = true; dragStartX = parseFloat(shipElement.style.left); dragStartY = parseFloat(shipElement.style.top); };
         }
 
         viewport.addEventListener('mousemove', (e) => {
             if (!isDragging || !shipElement) return;
             const rect = viewport.getBoundingClientRect();
-            const rawX = e.clientX - rect.left;
-            const rawY = e.clientY - rect.top;
+            const rawX = e.clientX - rect.left, rawY = e.clientY - rect.top;
 
-            shipElement.style.left = rawX + 'px';
-            shipElement.style.top = rawY + 'px';
-
-            rulerLine.setAttribute('x1', dragStartX);
-            rulerLine.setAttribute('y1', dragStartY);
-            rulerLine.setAttribute('x2', rawX);
-            rulerLine.setAttribute('y2', rawY);
+            shipElement.style.left = rawX + 'px'; shipElement.style.top = rawY + 'px';
+            rulerLine.setAttribute('x1', dragStartX); rulerLine.setAttribute('y1', dragStartY);
+            rulerLine.setAttribute('x2', rawX); rulerLine.setAttribute('y2', rawY);
             rulerLine.style.display = 'block';
 
-            const distPx = Math.hypot(rawX - dragStartX, rawY - dragStartY);
-            const hexSizePx = HEX_RADIUS * Math.sqrt(3); 
-            const distHex = (distPx / hexSizePx).toFixed(1); 
-
-            const midX = (dragStartX + rawX) / 2;
-            const midY = (dragStartY + rawY) / 2;
-
-            rulerText.setAttribute('x', midX);
-            rulerText.setAttribute('y', midY);
-            rulerText.textContent = distHex + ' Units';
+            const midX = (dragStartX + rawX) / 2, midY = (dragStartY + rawY) / 2;
+            rulerText.setAttribute('x', midX); rulerText.setAttribute('y', midY);
+            rulerText.textContent = (Math.hypot(rawX - dragStartX, rawY - dragStartY) / (HEX_RADIUS * Math.sqrt(3))).toFixed(1) + ' Units';
             rulerText.style.display = 'block';
-
-            rulerBg.setAttribute('x', midX - 35);
-            rulerBg.setAttribute('y', midY - 10);
-            rulerBg.setAttribute('width', 70);
-            rulerBg.setAttribute('height', 20);
+            rulerBg.setAttribute('x', midX - 35); rulerBg.setAttribute('y', midY - 10);
+            rulerBg.setAttribute('width', 70); rulerBg.setAttribute('height', 20);
             rulerBg.style.display = 'block';
         });
 
         viewport.addEventListener('mouseup', async (e) => {
             if (!isDragging || !activeSector) return;
             isDragging = false;
-            
-            rulerLine.style.display = 'none';
-            rulerText.style.display = 'none';
-            rulerBg.style.display = 'none';
+            rulerLine.style.display = 'none'; rulerText.style.display = 'none'; rulerBg.style.display = 'none';
             
             const rect = viewport.getBoundingClientRect();
-            const rawX = e.clientX - rect.left;
-            const rawY = e.clientY - rect.top;
-
-            let bestDist = Infinity;
-            let bestCoord = { x: activeSector.ship.x, y: activeSector.ship.y };
-            let bestPixel = { x: rawX, y: rawY };
+            const rawX = e.clientX - rect.left, rawY = e.clientY - rect.top;
+            let bestDist = Infinity, bestCoord = { x: activeSector.ship.x, y: activeSector.ship.y }, bestPixel = { x: rawX, y: rawY };
 
             for(let gx=0; gx<=35; gx++) {
                 for(let gy=0; gy<=25; gy++) {
                     const hPos = getHexPixel(gx, gy);
                     const dist = Math.hypot(hPos.x - rawX, hPos.y - rawY);
-                    if(dist < bestDist) {
-                        bestDist = dist;
-                        bestCoord = { x: gx, y: gy };
-                        bestPixel = hPos;
-                    }
+                    if(dist < bestDist) { bestDist = dist; bestCoord = { x: gx, y: gy }; bestPixel = hPos; }
                 }
             }
-
-            activeSector.ship.x = bestCoord.x;
-            activeSector.ship.y = bestCoord.y;
-
-            shipElement.style.left = bestPixel.x + 'px';
-            shipElement.style.top = bestPixel.y + 'px';
-
+            activeSector.ship.x = bestCoord.x; activeSector.ship.y = bestCoord.y;
+            shipElement.style.left = bestPixel.x + 'px'; shipElement.style.top = bestPixel.y + 'px';
             statusMsg.innerText = "UPLINKING...";
             await window.gLink.saveSectorServer(window.charId, activeSector.id, activeSector.name, JSON.stringify(activeSector));
             statusMsg.innerText = "STANDBY";
         });
 
         viewport.addEventListener('mouseleave', () => { 
-            isDragging = false; 
-            rulerLine.style.display = 'none';
-            rulerText.style.display = 'none';
-            rulerBg.style.display = 'none';
+            isDragging = false; rulerLine.style.display = 'none'; rulerText.style.display = 'none'; rulerBg.style.display = 'none';
         });
 
         initMap();
