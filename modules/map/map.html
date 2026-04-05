@@ -23,16 +23,46 @@
         #map-scope .editable { border-bottom: 1px dashed #454d5d; cursor: text; outline: none; transition: 0.2s; display: inline-block; min-width: 20px; }
         #map-scope .editable:focus { border-bottom-color: #00ff9d; background: rgba(0,255,153,0.1); }
 
+        /* THE SCROLLBAR FIX */
         #map-viewport { 
-            flex-grow: 1; position: relative; overflow: hidden;
+            flex-grow: 1; position: relative; overflow: auto;
             background-color: #020204;
         }
 
-        #starscape { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; transition: background 1s; }
-        #map-content { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        /* Lock the internal universe size so it never cramps on a tablet */
+        #starscape, #grid-layer, #passages-layer, #map-content, #ruler-layer {
+            width: 1800px !important; 
+            height: 1400px !important;
+        }
+
+        /* Custom Sci-Fi Scrollbars mapped to your Region Theme! */
+        #map-viewport::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+        #map-viewport::-webkit-scrollbar-track {
+            background: #0b0d12;
+            border-left: 1px solid #1a1c23;
+            border-top: 1px solid #1a1c23;
+        }
+        #map-viewport::-webkit-scrollbar-thumb {
+            background: var(--theme-color);
+            border-radius: 2px;
+            opacity: 0.5;
+            border: 2px solid #0b0d12;
+        }
+        #map-viewport::-webkit-scrollbar-thumb:hover {
+            background: #fff;
+        }
+        #map-viewport::-webkit-scrollbar-corner {
+            background: #0b0d12;
+        }
+
+        #starscape { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 1; transition: background 1s; }
+        #map-content { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 10; }
         
         #grid-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2;
+            position: absolute; top: 0; left: 0; pointer-events: none; z-index: 2;
             -webkit-mask-image: linear-gradient(to right, black 65%, transparent 100%);
             mask-image: linear-gradient(to right, black 65%, transparent 100%);
         }
@@ -79,7 +109,7 @@
         }
         .npc-ship-token:hover { transform: translate(-50%, -50%) scale(1.5); box-shadow: 0 0 15px #f59e0b; z-index: 20; }
 
-        #passages-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+        #passages-layer { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 5; }
         .passage-line { stroke-width: 2; stroke-dasharray: 4; fill: none; transition: stroke 1s; }
     </style>
 
@@ -114,7 +144,7 @@
         <svg id="passages-layer"></svg>
         <div id="map-content"></div>
         
-        <svg id="ruler-layer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100;">
+        <svg id="ruler-layer" style="position: absolute; top: 0; left: 0; pointer-events: none; z-index: 100;">
             <line id="ruler-line" x1="0" y1="0" x2="0" y2="0" stroke="#ff0055" stroke-width="2" stroke-dasharray="5,5" display="none" />
             <rect id="ruler-bg" fill="#1a1c23" stroke="#454d5d" stroke-width="1" rx="4" display="none" />
             <text id="ruler-text" fill="#ff0055" font-family="'Share Tech Mono', monospace" font-size="12" font-weight="bold" text-anchor="middle" dominant-baseline="middle" display="none"></text>
@@ -148,14 +178,14 @@
             'terminus': { settlements: 6, passages: 4, bhChance: 0.02 },
             'outlands': { settlements: 5, passages: 3, bhChance: 0.15 },
             'expanse':  { settlements: 4, passages: 2, bhChance: 0.30 },
-            'void':     { settlements: 4, passages: 1, bhChance: 1.00 } // Settlements quota used for derelicts here!
+            'void':     { settlements: 4, passages: 1, bhChance: 1.00 }
         };
 
         const REGION_COLORS = {
-            'terminus': { hex: '#00ff9d', grid: 'rgba(0, 255, 153, 0.08)', pass: 'rgba(0, 255, 153, 0.3)' },  // Green
-            'outlands': { hex: '#facc15', grid: 'rgba(250, 204, 21, 0.08)', pass: 'rgba(250, 204, 21, 0.3)' }, // Yellow
-            'expanse':  { hex: '#f97316', grid: 'rgba(249, 115, 22, 0.08)', pass: 'rgba(249, 115, 22, 0.3)' }, // Orange
-            'void':     { hex: '#ef4444', grid: 'rgba(239, 68, 68, 0.08)', pass: 'rgba(239, 68, 68, 0.3)' }    // Red Alert
+            'terminus': { hex: '#00ff9d', grid: 'rgba(0, 255, 153, 0.08)', pass: 'rgba(0, 255, 153, 0.3)' },
+            'outlands': { hex: '#facc15', grid: 'rgba(250, 204, 21, 0.08)', pass: 'rgba(250, 204, 21, 0.3)' },
+            'expanse':  { hex: '#f97316', grid: 'rgba(249, 115, 22, 0.08)', pass: 'rgba(249, 115, 22, 0.3)' },
+            'void':     { hex: '#ef4444', grid: 'rgba(239, 68, 68, 0.08)', pass: 'rgba(239, 68, 68, 0.3)' }
         };
 
         const charNames = ["Jax", "Kaelen", "Lyra", "Voss", "Sira", "Tark", "Rian", "Cora", "Dax", "Elara", "Zane", "Nova", "Kian"];
@@ -190,7 +220,6 @@
             "Shattered World": "https://en.wikipedia.org/wiki/Disrupted_planet"
         };
 
-        // Inject Dynamic CSS styles so everything follows the region theme
         const dynamicStyle = document.createElement('style');
         dynamicStyle.innerHTML = `
             #map-scope { --theme-color: #00ff9d; --theme-bg: rgba(0,255,153,0.1); color: var(--theme-color); transition: color 0.5s; }
@@ -341,7 +370,6 @@
             const MIN_X = 2; const MAX_X_SAFE = bounds.w - 2; 
             const MIN_Y = 2; const MAX_Y = bounds.h - 2;
 
-            // Pass 1: Massive Gravity Wells (Independent from Settlement quota)
             for (let i = 0; i < 3; i++) { 
                 if (starCount >= 2) break;
                 if (Math.random() > 0.4 && region !== 'void') continue; 
@@ -380,13 +408,11 @@
                 }
             }
 
-            // Override Theme if Void triggered!
             if (voidTriggered && region !== 'void') {
                 region = 'void';
                 sector.region = 'VOID';
             }
 
-            // Pass 2: Planets (Independent from Settlement quota)
             let numPlanets = Math.floor(Math.random() * rules.settlements) + 1;
             for (let i = 0; i < numPlanets; i++) {
                 if (Math.random() > 0.60) continue; 
@@ -414,7 +440,6 @@
                 }
             }
 
-            // Pass 3: Asteroid Swarms (Independent from Settlement quota)
             let numAsteroids = Math.floor(Math.random() * rules.settlements) + 1;
             for (let i = 0; i < numAsteroids; i++) {
                 if (Math.random() > 0.4) continue;
@@ -447,26 +472,23 @@
                 }
             }
 
-            // Pass 4: Outposts, Stations, and Clutter (Uses Settlement Quota)
             for (let i = 0; i < rules.settlements; i++) {
                 
                 let settlementChance = 0.5;
-                if (region === 'void') settlementChance = 0.0; // No living stations in the Void!
+                if (region === 'void') settlementChance = 0.0; 
                 else if (region === 'expanse') settlementChance = 0.4;
                 else if (region === 'outlands') settlementChance = 0.6;
-                else settlementChance = 0.8; // Terminus is mostly outposts
+                else settlementChance = 0.8; 
 
                 let rnd = Math.random();
                 let loc, name, renderType, pType = "N/A", auth = "N/A", proj = "N/A", pop = "None";
                 
                 if (rnd > settlementChance) {
-                    // Clutter
                     let clutRnd = Math.random();
                     if (clutRnd < 0.4) { loc = "Derelict Spacecraft"; name = "Unknown Ghost Ship"; renderType = "derelict"; }
                     else if (clutRnd < 0.7) { loc = "Precursor Vault"; name = "Alien Construct"; renderType = "precursor"; }
                     else { loc = "Anomalous Signature"; name = "Unknown Contact"; renderType = "unknown"; }
                 } else {
-                    // Real Settlement
                     loc = rollOracle("settlement_location", locRolls[Math.floor(Math.random() * locRolls.length)]);
                     name = rollOracle("settlement_name", `Outpost ${idCounter}`);
                     pType = loc.toLowerCase().includes("planet") ? rollOracle("planet_class", planetRolls[Math.floor(Math.random() * planetRolls.length)]) : "N/A";
@@ -579,7 +601,6 @@
             const regKey = activeSector.region.toLowerCase();
             const rColor = REGION_COLORS[regKey] || REGION_COLORS['terminus'];
 
-            // UI Theme Injection
             scope.style.setProperty('--theme-color', rColor.hex);
             scope.style.setProperty('--theme-bg', rColor.grid.replace('0.08', '0.1'));
 
@@ -658,7 +679,6 @@
                 token.onmouseleave = () => unhighlightSidebarCard(s.id);
 
                 let tWidth = 16; let tHeight = 16;
-                // Use CSS Variable for default token shadows so they match the region!
                 let shadowStr = `0 0 10px ${rColor.hex}`;
 
                 if (s.renderType === 'derelict') { token.classList.add('token-derelict'); token.style.borderColor = "#10b981"; shadowStr = "0 0 10px rgba(16,185,129,0.3)"; }
@@ -730,7 +750,10 @@
         viewport.addEventListener('mousemove', (e) => {
             if (!isDragging || !shipElement) return;
             const rect = viewport.getBoundingClientRect();
-            const rawX = e.clientX - rect.left, rawY = e.clientY - rect.top;
+            
+            // Fix: calculate raw offset considering the scroll position!
+            const rawX = e.clientX - rect.left + viewport.scrollLeft;
+            const rawY = e.clientY - rect.top + viewport.scrollTop;
 
             shipElement.style.left = rawX + 'px'; shipElement.style.top = rawY + 'px';
             rulerLine.setAttribute('x1', dragStartX); rulerLine.setAttribute('y1', dragStartY);
@@ -752,7 +775,10 @@
             rulerLine.style.display = 'none'; rulerText.style.display = 'none'; rulerBg.style.display = 'none';
             
             const rect = viewport.getBoundingClientRect();
-            const rawX = e.clientX - rect.left, rawY = e.clientY - rect.top;
+            // Fix: calculate raw offset considering the scroll position!
+            const rawX = e.clientX - rect.left + viewport.scrollLeft;
+            const rawY = e.clientY - rect.top + viewport.scrollTop;
+            
             let bestDist = Infinity, bestCoord = { x: activeSector.ship.x, y: activeSector.ship.y }, bestPixel = { x: rawX, y: rawY };
 
             for(let gx=0; gx<=35; gx++) {
