@@ -54,7 +54,9 @@
 
         window.showCompendiumModal = function(nodeId) {
             if (!window.dataswornCore) return;
-            const node = window.dataswornCore.findNode(nodeId);
+            const cleanId = nodeId.replace(/^[a-zA-Z]+:/, '');
+            const node = window.dataswornCore.findNode(cleanId);
+            
             let modal = document.getElementById('compendium-modal');
             if (!modal) {
                 modal = document.createElement('div'); modal.id = 'compendium-modal';
@@ -64,7 +66,7 @@
                 document.body.appendChild(modal);
             }
             if (!node) {
-                document.getElementById('compendium-modal-title').innerText = "DATA NOT FOUND"; document.getElementById('compendium-modal-tag').innerText = "ERROR"; document.getElementById('compendium-modal-body').innerHTML = `The neural link to <span style="color:#ff0055;">${nodeId}</span> could not be established.`;
+                document.getElementById('compendium-modal-title').innerText = "DATA NOT FOUND"; document.getElementById('compendium-modal-tag').innerText = "ERROR"; document.getElementById('compendium-modal-body').innerHTML = `The neural link to <span style="color:#ff0055;">${cleanId}</span> could not be established.`;
             } else {
                 document.getElementById('compendium-modal-title').innerText = (node.name || "DATABANK ENTRY").toUpperCase(); document.getElementById('compendium-modal-tag').innerText = (node.type || "INFO").toUpperCase().replace(/_/g, ' '); document.getElementById('compendium-modal-body').innerHTML = window.formatMarkdown(node.text || node.description || "No data available.");
             }
@@ -142,6 +144,7 @@
             scope.querySelector('#sync-status').innerText = "SYSTEM ONLINE";
         }
 
+        // Listens for the broadcast from the asset-browser and reloads the tracker
         window.addEventListener('assetsChanged', () => {
             initTracker();
         });
