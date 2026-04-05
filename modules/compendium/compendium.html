@@ -13,8 +13,8 @@
         #compendium-scope .card-title { display: block; font-weight: bold; color: #00ff9d; margin-bottom: 10px; font-family: 'Share Tech Mono'; }
         #compendium-scope .card-text { font-size: 0.85rem; line-height: 1.5; color: #aab; }
         
-        #compendium-scope .oracle-roll-btn { margin-top: 15px; width: 100%; background: transparent; border: 1px solid #00ff9d; color: #00ff9d; padding: 8px; cursor: pointer; font-family: 'Share Tech Mono'; }
-        #compendium-scope .oracle-roll-btn:hover { background: rgba(0,255,153,0.1); }
+        #compendium-scope .oracle-roll-btn { margin-top: 15px; width: 100%; background: transparent; border: 1px solid #00ff9d; color: #00ff9d; padding: 8px; cursor: pointer; font-family: 'Share Tech Mono'; transition: 0.2s; }
+        #compendium-scope .oracle-roll-btn:hover { background: #00ff9d; color: #000; }
     </style>
 
     <div class="tabs">
@@ -39,21 +39,18 @@
             if (!txt) return "";
             let html = txt;
             
-            // 1. Extract Links first so the URLs don't get mangled by the bold/italic regex
             const links = [];
             html = html.replace(/\[(.*?)\]\((.*?)\)/g, (match, text, url) => {
                 links.push({ text, url });
                 return `%%LINK_${links.length - 1}%%`;
             });
 
-            // 2. Format standard Markdown
             html = html.replace(/\*\*(.*?)\*\*/g, '<b style="color:#bcdee7;">$1</b>');
             html = html.replace(/__(.*?)__/g, '<b style="color:#bcdee7;">$1</b>');
             html = html.replace(/(?<!\w)\*(.*?)\*(?!\w)/g, '<i>$1</i>');
             html = html.replace(/(?<!\w)_(.*?)_(?!\w)/g, '<i>$1</i>'); 
             html = html.replace(/\n/g, '<br>');
 
-            // 3. Restore Links as interactive elements
             html = html.replace(/%%LINK_(\d+)%%/g, (match, index) => {
                 const link = links[index];
                 return `<span style="color:#00ff9d; cursor:pointer; text-decoration:underline dashed; text-underline-offset: 3px;" onclick="showCompendiumModal('${link.url}')">${link.text}</span>`;
@@ -64,14 +61,16 @@
 
         window.showCompendiumModal = function(nodeId) {
             if (!window.dataswornCore) return;
-            const node = window.dataswornCore.findNode(nodeId);
+            
+            // Fix: Strip out 'id:', 'move:', 'oracle:' prefixes from the Datasworn strings!
+            const cleanId = nodeId.replace(/^[a-zA-Z]+:/, '');
+            const node = window.dataswornCore.findNode(cleanId);
             
             let modal = document.getElementById('compendium-modal');
             if (!modal) {
                 modal = document.createElement('div');
                 modal.id = 'compendium-modal';
                 modal.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(5,5,8,0.9); z-index:9999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px);";
-                // Click outside to close
                 modal.onclick = function(e) { if (e.target === modal) modal.style.display = 'none'; };
                 
                 modal.innerHTML = `
@@ -88,18 +87,16 @@
             if (!node) {
                 document.getElementById('compendium-modal-title').innerText = "DATA NOT FOUND";
                 document.getElementById('compendium-modal-tag').innerText = "ERROR";
-                document.getElementById('compendium-modal-body').innerHTML = `The neural link to <span style="color:#ff0055;">${nodeId}</span> could not be established.`;
+                document.getElementById('compendium-modal-body').innerHTML = `The neural link to <span style="color:#ff0055;">${cleanId}</span> could not be established.`;
             } else {
                 document.getElementById('compendium-modal-title').innerText = (node.name || "DATABANK ENTRY").toUpperCase();
                 document.getElementById('compendium-modal-tag').innerText = (node.type || "INFO").toUpperCase().replace(/_/g, ' ');
-                // Pass the node's text through our formatter recursively!
                 document.getElementById('compendium-modal-body').innerHTML = window.formatMarkdown(node.text || node.description || "No data available.");
             }
             
             modal.style.display = 'flex';
         };
     }
-    // --- END ENGINE ---
 
     (function() {
         const scope = document.getElementById('compendium-scope');
@@ -150,18 +147,40 @@
                     <span class="card-title">${(item.name || "UNNAMED").toUpperCase()}</span>
                     <div class="card-text">${window.formatMarkdown(item.text || item.description || "")}</div>
                     ${currentType === 'oracle_rollable' ? 
-                        `<button class="oracle-roll-btn" onclick="consultNeuralOracle('${item.name}', '${item._id}')">CONSULT ORACLE</button>` : ''
+                        `<button class="oracle-roll-btn" onclick="consultNeuralOracle('${item.name.replace(/'/g, "\\'")}', '${item._id}')">CONSULT ORACLE</button>` : ''
                     }
                 </div>
             `).join('');
         };
 
         window.consultNeuralOracle = async function(name, id) {
+            const node = window.dataswornCore.findNode(id);
             const roll = Math.floor(Math.random() * 100) + 1;
-            const result = `Oracle [${name}] rolled ${roll}.`;
+            let resultText = "Data corrupted or missing in databanks.";
+
+            // Scan the Datasworn table rows for our roll
+            if (node && node.rows) {
+                for (let r of node.rows) {
+                    let min = r.min !== undefined ? r.min : (r.roll && r.roll.min !== undefined ? r.roll.min : r.roll);
+                    let max = r.max !== undefined ? r.max : (r.roll && r.roll.max !== undefined ? r.roll.max : r.roll);
+                    
+                    if (roll >= min && roll <= max) {
+                        resultText = r.text || r.summary || r.result || "Unknown Result";
+                        break;
+                    }
+                }
+            }
+
+            // Clean up Markdown logic to make it look good in the Journal
+            const finalDocOutput = `[ORACLE: ${name.toUpperCase()}]\nRolled: ${roll}\nResult: ${resultText}`;
             
-            alert(result);
-            await window.gLink.logServer(window.charId, result);
+            // Give instant feedback on the screen
+            alert(`[${name}]\nRolled: ${roll}\n\n${resultText.replace(/<[^>]*>?/gm, '')}`);
+            
+            // Push it to Google Docs!
+            if (window.gLink && typeof window.gLink.logServer === 'function') {
+                await window.gLink.logServer(window.charId, finalDocOutput);
+            }
         };
 
         initCompendium();
