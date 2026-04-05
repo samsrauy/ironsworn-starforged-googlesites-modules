@@ -43,13 +43,15 @@
 
     <div style="background: #1a1c23; border: 1px solid #454d5d; padding: 15px; border-left: 4px solid #3b82f6; margin-bottom: 20px; font-family: 'Exo 2', sans-serif;">
         <div style="font-size: 0.7rem; color: #3b82f6; letter-spacing: 2px; margin-bottom: 10px; font-family: 'Share Tech Mono';">CUSTOM ACTION ROLLER</div>
-        <div style="display: flex; gap: 10px; align-items: center;">
+        
+        <div style="display: flex; gap: 10px; align-items: flex-end;">
             <div style="flex-grow: 1;">
                 <label style="font-size: 0.8rem; color: #aab; display: block; margin-bottom: 5px;">TOTAL ADDS (Stat + Bonuses)</label>
-                <input type="number" id="dice-modifier" value="0" style="width: 100%; box-sizing: border-box; padding: 8px; background: #0b0d12; border: 1px solid #454d5d; color: #fff; text-align: center; font-size: 1.2rem; font-family: 'Share Tech Mono';">
+                <input type="number" id="dice-modifier" value="0" style="width: 100%; box-sizing: border-box; height: 42px; background: #0b0d12; border: 1px solid #454d5d; color: #fff; text-align: center; font-size: 1.2rem; font-family: 'Share Tech Mono';">
             </div>
-            <button onclick="executeActionRoll()" style="background: #3b82f6; color: #000; border: none; padding: 15px 20px; font-family: 'Share Tech Mono'; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap;">EXECUTE ROLL</button>
-            <button onclick="executeD100Roll()" style="background: #161922; color: #bcdee7; border: 1px solid #454d5d; padding: 15px 20px; font-family: 'Share Tech Mono'; cursor: pointer; transition: 0.2s; white-space: nowrap;">d100</button>
+            
+            <button onclick="executeActionRoll()" style="height: 42px; background: #3b82f6; color: #000; border: none; padding: 0 20px; font-family: 'Share Tech Mono'; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap;">EXECUTE ROLL</button>
+            <button onclick="executeD100Roll()" style="height: 42px; background: #161922; color: #bcdee7; border: 1px solid #454d5d; padding: 0 20px; font-family: 'Share Tech Mono'; cursor: pointer; transition: 0.2s; white-space: nowrap;">d100</button>
         </div>
     </div>
 
