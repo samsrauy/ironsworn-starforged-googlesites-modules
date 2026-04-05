@@ -107,5 +107,17 @@
         }
 
         initTracker();
+        async function syncAssetChanges() {
+            scope.querySelector('#sync-status').innerText = "UPLINKING...";
+            await window.gLink.saveStatServer(window.charId, "assets", JSON.stringify(myAssets));
+            scope.querySelector('#sync-status').innerText = "SYSTEM ONLINE";
+        }
+
+        // Listens for the broadcast from the asset-browser and reloads the tracker
+        window.addEventListener('assetsChanged', () => {
+            initTracker();
+        });
+
+        initTracker();
     })();
 </script>
