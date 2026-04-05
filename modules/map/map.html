@@ -146,10 +146,11 @@
         let dragStartX = 0;
         let dragStartY = 0;
 
+        // NEW: Black Hole probabilities tied to regions!
         const REGION_RULES = {
-            'terminus': { settlements: 6, passages: 4 },
-            'outlands': { settlements: 5, passages: 3 },
-            'expanse':  { settlements: 4, passages: 2 }
+            'terminus': { settlements: 6, passages: 4, bhChance: 0.02 },
+            'outlands': { settlements: 5, passages: 3, bhChance: 0.15 },
+            'expanse':  { settlements: 4, passages: 2, bhChance: 0.30 }
         };
 
         const charNames = ["Jax", "Kaelen", "Lyra", "Voss", "Sira", "Tark", "Rian", "Cora", "Dax", "Elara", "Zane", "Nova", "Kian"];
@@ -158,7 +159,7 @@
 
         const locRolls = ["Deep Space Station", "Orbital Habitat", "Asteroid Base", "Planetary Settlement", "Gas Giant Refinery"];
         const planetRolls = ["Desert World", "Ice World", "Furnace World", "Jungle World", "Ocean World", "Rocky World", "Toxic World", "Shattered World"];
-        const anomalyRolls = ["Black Hole", "Neutron Star", "Red Dwarf Star", "Pulsar", "Main Sequence Star"];
+        const starRolls = ["Neutron Star", "Red Dwarf Star", "Pulsar", "Main Sequence Star", "White Dwarf Star"];
 
         const WIKI_LINKS = {
             "Black Hole": "https://en.wikipedia.org/wiki/Black_hole",
@@ -168,6 +169,7 @@
             "Stellar Nebula": "https://en.wikipedia.org/wiki/Nebula",
             "Red Dwarf Star": "https://en.wikipedia.org/wiki/Red_dwarf",
             "Main Sequence Star": "https://en.wikipedia.org/wiki/Main_sequence",
+            "White Dwarf Star": "https://en.wikipedia.org/wiki/White_dwarf",
             "Pulsar": "https://en.wikipedia.org/wiki/Pulsar"
         };
 
@@ -280,26 +282,19 @@
 
             let sName = rollOracle("sector_name", secPrefix[Math.floor(Math.random()*secPrefix.length)] + " " + secSuffix[Math.floor(Math.random()*secSuffix.length)]);
             
-            // Generate Environmental Background (Nebula) - MASSIVELY Upgraded
             let isNebula = Math.random() < 0.45;
             let nebulaData = null;
             if (isNebula) {
-                const colors = [
-                    "rgba(139, 92, 246, 0.5)", // Purple
-                    "rgba(59, 130, 246, 0.5)", // Blue
-                    "rgba(16, 185, 129, 0.4)", // Green
-                    "rgba(244, 63, 94, 0.5)"   // Rose
-                ];
+                const colors = ["rgba(139, 92, 246, 0.5)", "rgba(59, 130, 246, 0.5)", "rgba(16, 185, 129, 0.4)", "rgba(244, 63, 94, 0.5)"];
                 nebulaData = {
                     name: "Stellar Nebula",
-                    x: Math.floor(Math.random() * 40) + 30, // Keep mostly central
+                    x: Math.floor(Math.random() * 40) + 30, 
                     y: Math.floor(Math.random() * 40) + 30,
-                    size: Math.floor(Math.random() * 60) + 50, // Massive sizes (50vw to 110vw)
+                    size: Math.floor(Math.random() * 60) + 50, 
                     color: colors[Math.floor(Math.random() * colors.length)]
                 };
             }
 
-            // Expanded Bounds to match visual grid
             const bounds = { w: 34, h: 22 }; 
             const sector = {
                 id: 'sec_' + Date.now(), 
@@ -314,35 +309,42 @@
             const objectsToGen = rules.settlements + 4; 
             let starCount = 0;
 
-            // Pass 1: Massive Gravity Wells (Max 2, Right Edge Only)
+            // EDGE PADDING: Keep objects out of the outer 2 hexes on top, left, bottom. Right is open for Stars!
+            const MIN_X = 2; const MAX_X_SAFE = bounds.w - 2; 
+            const MIN_Y = 2; const MAX_Y = bounds.h - 2;
+
+            // Pass 1: Massive Gravity Wells (Stars & Black Holes)
             for (let i = 0; i < objectsToGen; i++) {
                 if (starCount >= 2) break;
                 if (Math.random() > 0.4) continue; 
                 
-                // Force X to be in the rightmost 8 hex columns (26 to 34)
-                let x = Math.floor(Math.random() * 8) + (bounds.w - 7); 
-                let y = Math.floor(Math.random() * bounds.h) + 1;
+                // Stars/Black holes can spawn all the way to bounds.w (the visual edge bleed)
+                let x = Math.floor(Math.random() * 5) + (bounds.w - 4); 
+                let y = Math.floor(Math.random() * (MAX_Y - MIN_Y + 1)) + MIN_Y;
                 
-                // Enforce massive exclusion zone (5 hexes)
                 let valid = true;
                 for (let s of sector.settlements) {
                     if (Math.hypot(s.x - x, s.y - y) < 5) { valid = false; break; }
                 }
                 if (!valid) continue;
 
-                let name = rollOracle("anomaly_name", anomalyRolls[Math.floor(Math.random() * anomalyRolls.length)]);
+                // Check region rules for a Black Hole!
+                let isBlackHole = Math.random() < rules.bhChance;
+                let name = isBlackHole 
+                    ? rollOracle("anomaly_name", "Black Hole")
+                    : rollOracle("anomaly_name", starRolls[Math.floor(Math.random() * starRolls.length)]);
+
                 sector.settlements.push({
                     id: idCounter++, x: x, y: y, name: name, location: "Stellar Anomaly",
                     population: "None", authority: "N/A", projects: "N/A", planet: "N/A", renderType: "anomaly"
                 });
                 starCount++;
 
-                // 25% chance for Binary Star System! Locks right next to it.
-                if ((name.includes("Star") || name.includes("Hole")) && Math.random() < 0.25) {
+                if ((name.includes("Star") || name.includes("Hole") || name.includes("Dwarf")) && Math.random() < 0.25) {
                     if (starCount < 2) {
                         sector.settlements.push({
                             id: idCounter++, x: x - 1, y: y + (Math.random() > 0.5 ? 1 : -1), 
-                            name: rollOracle("anomaly_name", anomalyRolls[Math.floor(Math.random() * anomalyRolls.length)]), 
+                            name: rollOracle("anomaly_name", starRolls[Math.floor(Math.random() * starRolls.length)]), 
                             location: "Stellar Anomaly", population: "None", authority: "N/A", projects: "N/A", planet: "N/A", renderType: "anomaly"
                         });
                         starCount++;
@@ -350,18 +352,21 @@
                 }
             }
 
-            // Pass 2: Planets (Kept away from Gravity Wells)
+            // Pass 2: Planets (Safe padded generation)
             for (let i = 0; i < objectsToGen; i++) {
                 if (Math.random() > 0.50) continue; 
                 
                 let attempts = 0, valid = false, x, y;
                 while (!valid && attempts < 50) {
-                    x = Math.floor(Math.random() * (bounds.w - 8)) + 1; // Keep away from right edge
-                    y = Math.floor(Math.random() * bounds.h) + 1;
+                    x = Math.floor(Math.random() * ((MAX_X_SAFE - 6) - MIN_X + 1)) + MIN_X; 
+                    y = Math.floor(Math.random() * (MAX_Y - MIN_Y + 1)) + MIN_Y;
                     valid = true;
-                    // Planets need to be far from gravity wells, but can be near each other
                     for (let s of sector.settlements) {
-                        let reqDist = s.renderType === "anomaly" ? 5 : 2;
+                        let reqDist = 2;
+                        if (s.renderType === "anomaly") {
+                            // Massive 8-hex exclusion zone for Black Holes!
+                            reqDist = s.name.includes("Black Hole") ? 8 : 5;
+                        }
                         if (Math.hypot(s.x - x, s.y - y) < reqDist) { valid = false; break; }
                     }
                     attempts++;
@@ -377,7 +382,7 @@
                 }
             }
 
-            // Pass 3: Asteroid Swarms (Bias toward Planets)
+            // Pass 3: Asteroid Swarms
             for (let i = 0; i < objectsToGen; i++) {
                 if (Math.random() > 0.4) continue;
                 
@@ -385,18 +390,18 @@
                 const planets = sector.settlements.filter(s => s.renderType === "planet");
                 
                 if (planets.length > 0 && Math.random() < 0.6) {
-                    // 60% chance to orbit a planet
                     let target = planets[Math.floor(Math.random() * planets.length)];
                     x = target.x + (Math.random() > 0.5 ? 1 : -1);
                     y = target.y + (Math.random() > 0.5 ? 1 : 0);
                 } else {
-                    x = Math.floor(Math.random() * (bounds.w - 8)) + 1;
-                    y = Math.floor(Math.random() * bounds.h) + 1;
+                    x = Math.floor(Math.random() * ((MAX_X_SAFE - 6) - MIN_X + 1)) + MIN_X;
+                    y = Math.floor(Math.random() * (MAX_Y - MIN_Y + 1)) + MIN_Y;
                 }
 
                 for (let s of sector.settlements) {
                     if (s.x === x && s.y === y) valid = false;
-                    if (s.renderType === "anomaly" && Math.hypot(s.x - x, s.y - y) < 4) valid = false;
+                    // Asteroids can get slightly closer to Black Holes than planets can (distance 5 instead of 8)
+                    if (s.renderType === "anomaly" && Math.hypot(s.x - x, s.y - y) < 5) valid = false;
                 }
                 
                 if(valid) {
@@ -407,35 +412,44 @@
                 }
             }
 
-            // Pass 4: General Clutter (Stations, Derelicts, Precursors)
+            // Pass 4: General Clutter & The Void Graveyard mechanic
             while (sector.settlements.length < objectsToGen) {
+                // Roll WHAT we are placing first, so we know how close to a Black Hole it can survive
+                let rnd = Math.random();
+                let loc, name, renderType, pType = "N/A", auth = "N/A", proj = "N/A", pop = "None";
+                
+                if (rnd < 0.2) { loc = "Derelict Spacecraft"; name = "Unknown Ghost Ship"; renderType = "derelict"; }
+                else if (rnd < 0.4) { loc = "Precursor Vault"; name = "Alien Construct"; renderType = "precursor"; }
+                else if (rnd < 0.5) { loc = "Anomalous Signature"; name = "Unknown Contact"; renderType = "unknown"; }
+                else {
+                    loc = rollOracle("settlement_location", locRolls[Math.floor(Math.random() * locRolls.length)]);
+                    name = rollOracle("settlement_name", `Outpost ${idCounter}`);
+                    pType = loc.toLowerCase().includes("planet") ? rollOracle("planet_class", planetRolls[Math.floor(Math.random() * planetRolls.length)]) : "N/A";
+                    auth = rollOracle("authority", "None"); proj = rollOracle("settlement_projects", "Survival"); pop = rollOracle("population", "Hundreds");
+                    renderType = "settlement";
+                }
+
                 let x, y, valid = false, attempts = 0;
                 while (!valid && attempts < 50) {
-                    x = Math.floor(Math.random() * (bounds.w - 6)) + 1;
-                    y = Math.floor(Math.random() * bounds.h) + 1;
+                    x = Math.floor(Math.random() * ((MAX_X_SAFE - 4) - MIN_X + 1)) + MIN_X;
+                    y = Math.floor(Math.random() * (MAX_Y - MIN_Y + 1)) + MIN_Y;
                     valid = true;
+                    
                     for (let s of sector.settlements) {
                         if (Math.hypot(s.x - x, s.y - y) < 2) valid = false;
-                        if (s.renderType === "anomaly" && Math.hypot(s.x - x, s.y - y) < 5) valid = false; // Star exclusion
+                        if (s.renderType === "anomaly") {
+                            let reqDist = 5; // Base star exclusion
+                            if (s.name.includes("Black Hole")) {
+                                // Settlements die. Ruins/Derelicts can survive closer!
+                                reqDist = (renderType === "settlement") ? 8 : 4; 
+                            }
+                            if (Math.hypot(s.x - x, s.y - y) < reqDist) valid = false; 
+                        }
                     }
                     attempts++;
                 }
 
                 if (valid) {
-                    let rnd = Math.random();
-                    let loc, name, renderType, pType = "N/A", auth = "N/A", proj = "N/A", pop = "None";
-                    
-                    if (rnd < 0.2) { loc = "Derelict Spacecraft"; name = "Unknown Ghost Ship"; renderType = "derelict"; }
-                    else if (rnd < 0.4) { loc = "Precursor Vault"; name = "Alien Construct"; renderType = "precursor"; }
-                    else if (rnd < 0.5) { loc = "Anomalous Signature"; name = "Unknown Contact"; renderType = "unknown"; }
-                    else {
-                        loc = rollOracle("settlement_location", locRolls[Math.floor(Math.random() * locRolls.length)]);
-                        name = rollOracle("settlement_name", `Outpost ${idCounter}`);
-                        pType = loc.toLowerCase().includes("planet") ? rollOracle("planet_class", planetRolls[Math.floor(Math.random() * planetRolls.length)]) : "N/A";
-                        auth = rollOracle("authority", "None"); proj = rollOracle("settlement_projects", "Survival"); pop = rollOracle("population", "Hundreds");
-                        renderType = "settlement";
-                    }
-
                     sector.settlements.push({
                         id: idCounter++, x: x, y: y, name: name, location: loc,
                         population: pop, authority: auth, projects: proj, planet: pType, renderType: renderType
@@ -443,7 +457,6 @@
                 } else { break; } 
             }
 
-            // Connect only planets and stations
             const trueSettlements = sector.settlements.filter(s => s.renderType === "settlement" || s.renderType === "planet");
             let passageCount = 0;
             if (trueSettlements.length > 1) {
@@ -461,11 +474,11 @@
                 role: rollOracle("character_role", "Scavenger"), rank: "Dangerous",
                 home: connIsShip ? "Independent Starship" : (trueSettlements[0]?.name || "Nomad"),
                 isShip: connIsShip,
-                x: connIsShip ? Math.floor(Math.random() * (bounds.w - 8))+1 : 0, 
-                y: connIsShip ? Math.floor(Math.random() * bounds.h)+1 : 0
+                x: connIsShip ? Math.floor(Math.random() * ((MAX_X_SAFE - 6) - MIN_X + 1)) + MIN_X : 0, 
+                y: connIsShip ? Math.floor(Math.random() * (MAX_Y - MIN_Y + 1)) + MIN_Y : 0
             };
 
-            sector.ship = { x: 5, y: 5 }; // Safe start
+            sector.ship = { x: 5, y: 5 }; 
             
             activeSector = sector;
             renderSector(); 
@@ -497,7 +510,6 @@
         }
         window.unhighlightMapToken = function(id) {
             const token = document.getElementById(`token-${id}`);
-            // Re-render sector safely clears styles, but we can quick-revert here
             if (token) { 
                 token.style.transform = token.dataset.origTransform || 'translate(-50%, -50%)'; 
                 token.style.zIndex = ''; 
@@ -583,7 +595,6 @@
                 token.onmouseenter = () => highlightSidebarCard(s.id);
                 token.onmouseleave = () => unhighlightSidebarCard(s.id);
 
-                // DYNAMIC SCALING FOR PHYSICS
                 let tWidth = 16;
                 let tHeight = 16;
                 let shadowStr = "0 0 10px rgba(0,255,153,0.3)";
@@ -595,15 +606,19 @@
                 else if (s.renderType === 'planet') { token.style.borderColor = "#3b82f6"; shadowStr = "0 0 10px rgba(59,130,246,0.5)"; }
                 else if (s.renderType === 'anomaly') {
                     if (s.name.includes("Black Hole")) { 
-                        tWidth = 80; tHeight = 80; // Massive
+                        tWidth = 80; tHeight = 80; 
                         token.style.borderColor = "#8b5cf6"; token.style.backgroundColor = "#000"; 
                         shadowStr = "0 0 40px #8b5cf6"; 
+                    } else if (s.name.includes("White Dwarf")) { 
+                        tWidth = 45; tHeight = 45; 
+                        token.style.borderColor = "#ffffff"; token.style.backgroundColor = "#e2e8f0"; 
+                        shadowStr = "0 0 35px #ffffff"; 
                     } else if (s.name.includes("Star")) { 
-                        tWidth = 120; tHeight = 120; // Super Massive
+                        tWidth = 120; tHeight = 120; 
                         token.style.borderColor = "#fcd34d"; token.style.backgroundColor = "#b45309"; 
                         shadowStr = "0 0 60px #fcd34d"; 
                     } else if (s.name.includes("Pulsar") || s.name.includes("Neutron")) {
-                        tWidth = 40; tHeight = 40; // Dense but small
+                        tWidth = 40; tHeight = 40; 
                         token.style.borderColor = "#38bdf8"; token.style.backgroundColor = "#fff"; 
                         shadowStr = "0 0 30px #38bdf8"; 
                     } else { 
@@ -614,7 +629,7 @@
                 token.style.width = tWidth + 'px';
                 token.style.height = tHeight + 'px';
                 token.style.boxShadow = shadowStr;
-                token.dataset.origShadow = shadowStr; // Save for hover resets
+                token.dataset.origShadow = shadowStr; 
 
                 const labelDiv = document.createElement('div');
                 labelDiv.className = 'poi-label';
