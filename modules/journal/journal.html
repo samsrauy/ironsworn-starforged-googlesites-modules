@@ -22,15 +22,6 @@
             display: flex; flex-direction: column;
         }
 
-        /* --- CRT SCANLINE EFFECT --- */
-        body::after {
-            content: " "; display: block; position: absolute;
-            top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
-            background-size: 100% 4px;
-            z-index: 100; pointer-events: none;
-        }
-
         /* --- TERMINAL HEADER --- */
         #terminal-header {
             background: rgba(11, 13, 18, 0.95); border-bottom: 2px solid var(--term-green);
@@ -56,7 +47,7 @@
         .log-entry { line-height: 1.5; font-size: 0.95rem; text-shadow: 0 0 5px rgba(0,255,153,0.3); }
         .log-meta { color: #aab; font-size: 0.8rem; display: block; margin-bottom: 2px;}
         .log-id { color: #3b82f6; font-size: 0.75rem; }
-        .log-text { color: var(--term-green); margin-left: 15px; border-left: 2px solid var(--term-dim); padding-left: 10px; }
+        .log-text { color: var(--term-green); margin-left: 15px; border-left: 2px solid var(--term-dim); padding-left: 10px; white-space: pre-wrap; }
         .sys-text { color: var(--term-red); text-shadow: 0 0 5px rgba(255,0,85,0.3); }
 
         /* --- TERMINAL INPUT ROW --- */
@@ -78,121 +69,129 @@
 <body>
 
     <div id="terminal-header">
-        <span>VANGUARD SECURE SHELL v2.4</span>
-        <span class="header-status">UPLINK: ACTIVE</span>
+        <span>VOID-LINK SECURE SHELL v2.4</span>
+        <span class="header-status" id="uplink-status">UPLINK: STANDBY</span>
     </div>
 
     <div id="terminal-output">
         <div class="log-entry sys-text">
-            > INITIALIZING COMM-LINK...<br>
-            > ENCRYPTION PROTOCOLS VERIFIED.<br>
+            > INITIALIZING WEAVE PROTOCOL...<br>
+            > ENCRYPTION HANDSHAKE VERIFIED.<br>
             > AWAITING CAPTAIN'S LOG INPUT...
         </div>
     </div>
 
     <div id="terminal-input-row">
-        <span id="prompt">SNEAKY_PIE@TERM:~$</span>
-        <input type="text" id="log-input" placeholder="Type transmission here... (Press ENTER to send)" autocomplete="off" autofocus>
+        <span id="prompt">user@void-link.weave:~$</span>
+        <input type="text" id="log-input" placeholder="Type transmission here... (Press ENTER to send)" autocomplete="off">
     </div>
-    
-<script>
-        const outputContainer = document.getElementById('terminal-output');
-        const inputField = document.getElementById('log-input');
-        const promptSpan = document.getElementById('prompt');
-        const statusSpan = document.getElementById('uplink-status');
-        const maxLines = 50; 
-        
-        let charID = "UNKNOWN";
-        let charName = "Pilot";
 
-        // Wait a brief moment to ensure sync.js has injected window.charId
+    <script>
+        // Wrapping everything in a timeout ensures your injection engine finishes attaching the HTML to the DOM first
         setTimeout(() => {
+            const outputContainer = document.getElementById('terminal-output');
+            const inputField = document.getElementById('log-input');
+            const promptSpan = document.getElementById('prompt');
+            const statusSpan = document.getElementById('uplink-status');
+            const maxLines = 50; 
+            
+            let charID = "UNKNOWN";
+            let charName = "Pilot";
+
             if (window.charId) {
                 charID = window.charId;
                 charName = window.charName || window.charId;
             }
             
-            // Format the prompt string: e.g., snake@void-link.weave:~$
-            const safeId = charID.replace(/\s+/g, '_').toLowerCase();
-            promptSpan.innerText = safeId + "@void-link.weave:~$";
-            statusSpan.innerText = "UPLINK: ACTIVE";
-            statusSpan.style.color = "var(--term-green)";
-        }, 500);
-
-        inputField.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                submitLog();
+            // Format the prompt string dynamically
+            if (promptSpan) {
+                const safeId = charID.replace(/\s+/g, '_').toLowerCase();
+                promptSpan.innerText = safeId + "@void-link.weave:~$";
             }
-        });
-
-        function submitLog() {
-            const text = inputField.value.trim();
-            if (text === "") return; 
-
-            const now = new Date();
-            const dateStr = now.toLocaleDateString(); 
-            const timeStr = now.toLocaleTimeString(); 
             
-            const isoDate = now.toISOString().split('T')[0];
-            const isoTime = now.toTimeString().split(' ')[0];
-
-            // 1. Build the payload for Google Docs. 
-            // We ONLY send the secondary ID block and text, because Code.gs adds the primary Timestamp and Name!
-            const payloadString = `[ID: ${charID.toUpperCase()} | ${isoDate} ${isoTime}]\n${text}`;
-
-            // 2. Print the FULL combined format locally to the terminal immediately for immersion
-            appendTerminalEntry(dateStr, timeStr, isoDate, isoTime, text);
-
-            // 3. Push to Google Docs via sync.js
-            pushToGoogleDocs(payloadString);
-
-            // 4. Clear input
-            inputField.value = '';
-            inputField.focus();
-        }
-
-        function appendTerminalEntry(dateStr, timeStr, isoDate, isoTime, text) {
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            
-            entry.innerHTML = `
-                <span class="log-meta">[${dateStr}, ${timeStr}] ${charName}: <span class="log-id">[ID: ${charID.toUpperCase()} | ${isoDate} ${isoTime}]</span></span>
-                <div class="log-text">${text}</div>
-            `;
-            
-            outputContainer.appendChild(entry);
-            outputContainer.scrollTop = outputContainer.scrollHeight;
-
-            if (outputContainer.children.length > maxLines) {
-                outputContainer.removeChild(outputContainer.children[1]); 
+            // Show online status
+            if (statusSpan) {
+                statusSpan.innerText = "UPLINK: ACTIVE";
+                statusSpan.style.color = "var(--term-green)";
             }
-        }
 
-        // --- ACTUAL SERVER CONNECTION ---
-        async function pushToGoogleDocs(payloadString) {
-            try {
-                // Call the logServer function verified from sync.js
-                if (window.gLink && typeof window.gLink.logServer === 'function') {
-                    await window.gLink.logServer(window.charId, payloadString);
-                    console.log("Transmission securely logged to Void-Link.");
-                } else {
-                    console.error("window.gLink.logServer not found. Ensure sync.js is fully loaded.");
+            if (inputField) {
+                inputField.focus();
+                inputField.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        submitLog();
+                    }
+                });
+            }
+
+            function submitLog() {
+                if (!inputField || !outputContainer) return;
+                
+                const text = inputField.value.trim();
+                if (text === "") return; 
+
+                const now = new Date();
+                const dateStr = now.toLocaleDateString(); 
+                const timeStr = now.toLocaleTimeString(); 
+                
+                const isoDate = now.toISOString().split('T')[0];
+                const isoTime = now.toTimeString().split(' ')[0];
+
+                // 1. Build the payload for Google Docs. Code.gs handles the rest.
+                const payloadString = `[ID: ${charID.toUpperCase()} | ${isoDate} ${isoTime}]\n${text}`;
+
+                // 2. Print locally immediately for immersion
+                appendTerminalEntry(dateStr, timeStr, isoDate, isoTime, text);
+
+                // 3. Push to Google Docs via sync.js
+                pushToGoogleDocs(payloadString);
+
+                // 4. Clear input
+                inputField.value = '';
+                inputField.focus();
+            }
+
+            function appendTerminalEntry(dateStr, timeStr, isoDate, isoTime, text) {
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                
+                entry.innerHTML = `
+                    <span class="log-meta">[${dateStr}, ${timeStr}] ${charName}: <span class="log-id">[ID: ${charID.toUpperCase()} | ${isoDate} ${isoTime}]</span></span>
+                    <div class="log-text">${text}</div>
+                `;
+                
+                outputContainer.appendChild(entry);
+                outputContainer.scrollTop = outputContainer.scrollHeight;
+
+                if (outputContainer.children.length > maxLines) {
+                    outputContainer.removeChild(outputContainer.children[1]); 
                 }
-            } catch (error) {
-                console.error("Void-Link Sync Error:", error);
-                appendSystemMessage("ERROR: Uplink interrupted. Transmission failed.");
             }
-        }
 
-        function appendSystemMessage(msg) {
-            const entry = document.createElement('div');
-            entry.className = 'log-entry sys-text';
-            entry.innerText = `> ${msg}`;
-            outputContainer.appendChild(entry);
-            outputContainer.scrollTop = outputContainer.scrollHeight;
-        }
+            async function pushToGoogleDocs(payloadString) {
+                try {
+                    // Call the exact function name found in your sync.js file
+                    if (window.gLink && typeof window.gLink.logServer === 'function') {
+                        await window.gLink.logServer(charID, payloadString);
+                        console.log("Transmission securely logged to Void-Link.");
+                    } else {
+                        console.error("window.gLink.logServer not found. Ensure sync.js is fully loaded.");
+                    }
+                } catch (error) {
+                    console.error("Void-Link Sync Error:", error);
+                    appendSystemMessage("ERROR: Uplink interrupted. Transmission failed.");
+                }
+            }
+
+            function appendSystemMessage(msg) {
+                const entry = document.createElement('div');
+                entry.className = 'log-entry sys-text';
+                entry.innerText = `> ${msg}`;
+                outputContainer.appendChild(entry);
+                outputContainer.scrollTop = outputContainer.scrollHeight;
+            }
+        }, 500);
     </script>
-
 </body>
 </html>
