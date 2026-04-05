@@ -7,7 +7,7 @@
             display: flex; flex-direction: column; z-index: 20; padding: 20px; box-sizing: border-box;
             overflow-y: auto; font-size: 0.85rem; transition: background 1s, border-color 1s;
         }
-        #map-scope .sidebar-header { font-size: 0.7rem; letter-spacing: 3px; color: #454d5d; border-bottom: 1px solid #1a1c23; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase; display: flex; justify-content: space-between; transition: color 1s; }
+        #map-scope .sidebar-header { font-size: 0.7rem; letter-spacing: 3px; color: #454d5d; border-bottom: 1px solid #1a1c23; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; transition: color 1s; }
         
         #map-scope select, #map-scope button { 
             width: 100%; padding: 10px; background: #161922; color: #00ff9d; border: 1px solid #454d5d; 
@@ -23,14 +23,12 @@
         #map-scope .editable { border-bottom: 1px dashed #454d5d; cursor: text; outline: none; transition: 0.2s; display: inline-block; min-width: 20px; }
         #map-scope .editable:focus { border-bottom-color: #00ff9d; background: rgba(0,255,153,0.1); }
 
-        /* THE INFINITE, HIDDEN VIEWPORT (Removed smooth scroll for drag-panning) */
         #map-viewport { 
             flex-grow: 1; position: relative; overflow: hidden; 
             background-color: #020204; cursor: grab;
         }
         #map-viewport:active { cursor: grabbing; }
 
-        /* Lock the internal universe size */
         #starscape, #grid-layer, #passages-layer, #map-content, #ruler-layer {
             width: 1800px !important; 
             height: 1400px !important;
@@ -60,6 +58,39 @@
         #map-scope.void-alert .sidebar-header {
             color: #ef4444; 
             text-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+        }
+
+        /* --- THE MODAL OVERLAY --- */
+        #void-warning-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 5, 8, 0.9); z-index: 200;
+            display: none; align-items: center; justify-content: center;
+            flex-direction: column; backdrop-filter: blur(5px);
+        }
+        .modal-box {
+            background: rgba(20, 5, 5, 0.95);
+            border: 2px solid #ef4444;
+            padding: 40px; max-width: 500px; text-align: center;
+            box-shadow: 0 0 50px rgba(239, 68, 68, 0.5);
+        }
+        @keyframes textFlash {
+            0%, 100% { opacity: 1; text-shadow: 0 0 15px #ef4444; }
+            50% { opacity: 0.3; text-shadow: none; }
+        }
+        .modal-box h2 {
+            color: #ef4444; font-size: 2.5rem; margin-top: 0; font-family: 'Share Tech Mono';
+            letter-spacing: 5px; animation: textFlash 1s infinite;
+        }
+        .modal-box p {
+            color: #ffb3b3; font-size: 1.1rem; line-height: 1.6; margin-bottom: 30px; font-family: 'Share Tech Mono';
+        }
+        .modal-box button {
+            background: #ef4444; color: #000; border: none; padding: 15px 30px;
+            font-size: 1.2rem; font-weight: bold; cursor: pointer;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); transition: 0.2s;
+        }
+        .modal-box button:hover {
+            background: #fff; box-shadow: 0 0 25px #fff;
         }
 
         .poi-token { 
@@ -127,7 +158,12 @@
         </select>
         <button id="btn-load" onclick="loadArchivedSector()">LOAD SELECTED</button>
 
-        <div class="sidebar-header" style="margin-top:20px;">LOCAL SENSORS</div>
+        <div class="sidebar-header" style="margin-top:20px;">
+            <span>LOCAL SENSORS</span>
+            <label style="cursor:pointer; display:flex; align-items:center; gap:5px; font-size:0.6rem; color:#aab;">
+                <input type="checkbox" id="audio-toggle" checked style="accent-color: #ff0055; margin:0;"> ALARMS
+            </label>
+        </div>
         <div id="sector-info-container">
             <div style="opacity: 0.5; text-align: center; margin-top: 20px;">STANDBY</div>
         </div>
@@ -144,6 +180,14 @@
             <rect id="ruler-bg" fill="#1a1c23" stroke="#454d5d" stroke-width="1" rx="4" display="none" />
             <text id="ruler-text" fill="#ff0055" font-family="'Share Tech Mono', monospace" font-size="12" font-weight="bold" text-anchor="middle" dominant-baseline="middle" display="none"></text>
         </svg>
+    </div>
+
+    <div id="void-warning-modal">
+        <div class="modal-box">
+            <h2>WARNING</h2>
+            <p>Anomalous gravity well detected. Possible black hole within proximity. Quantum calculations unsolvable. Forcing eidolon drives out of FTL.</p>
+            <button onclick="dismissVoidWarning()">ACKNOWLEDGE</button>
+        </div>
     </div>
 </div>
 
@@ -165,11 +209,56 @@
         
         let activeSector = null;
         let isDragging = false;
-        let isPanning = false; // NEW: Map Pan tracker
-        let startPanX = 0, startPanY = 0, scrollL = 0, scrollT = 0; // NEW: Pan positions
+        let isPanning = false; 
+        let startPanX = 0, startPanY = 0, scrollL = 0, scrollT = 0; 
         let shipElement = null;
         let dragStartX = 0;
         let dragStartY = 0;
+
+        // --- SYNTHETIC WEB AUDIO ALARM ENGINE ---
+        let audioCtx = null;
+        let alarmInterval = null;
+
+        function triggerVoidWarning() {
+            document.getElementById('void-warning-modal').style.display = 'flex';
+            
+            const toggle = document.getElementById('audio-toggle');
+            if (!toggle || !toggle.checked) return; // Silent mode
+
+            if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+            if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+
+            let isHigh = true;
+            if (alarmInterval) clearInterval(alarmInterval);
+
+            // Creates a classic two-tone Sci-Fi Klaxon!
+            alarmInterval = setInterval(() => {
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(isHigh ? 600 : 450, audioCtx.currentTime);
+                
+                gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime); 
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+                
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+                
+                isHigh = !isHigh;
+            }, 500);
+        }
+
+        window.dismissVoidWarning = function() {
+            document.getElementById('void-warning-modal').style.display = 'none';
+            if (alarmInterval) {
+                clearInterval(alarmInterval);
+                alarmInterval = null;
+            }
+        };
 
         const REGION_RULES = {
             'terminus': { settlements: 6, passages: 4, bhChance: 0.02 },
@@ -552,6 +641,11 @@
             await refreshArchiveList();
             archiveSelect.value = sector.id; 
             statusMsg.innerText = "STANDBY";
+
+            // TRIGGER VOID ALERT POPUP
+            if (activeSector.region === 'VOID') {
+                triggerVoidWarning();
+            }
         };
 
         window.loadArchivedSector = async function() {
@@ -559,7 +653,15 @@
             if (!id) return;
             statusMsg.innerText = "DOWNLOADING...";
             const data = await window.gLink.loadSectorServer(window.charId, id);
-            if (data) { activeSector = data; renderSector(); statusMsg.innerText = "STANDBY"; } 
+            if (data) { 
+                activeSector = data; 
+                renderSector(); 
+                statusMsg.innerText = "STANDBY"; 
+                // TRIGGER VOID ALERT IF LOADING A DEAD ZONE
+                if (activeSector.region === 'VOID') {
+                    triggerVoidWarning();
+                }
+            } 
             else { statusMsg.innerText = "ARCHIVE CORRUPTED"; }
         };
 
@@ -613,7 +715,6 @@
             scope.style.setProperty('--theme-color', rColor.hex);
             scope.style.setProperty('--theme-bg', rColor.grid.replace('0.08', '0.1'));
 
-            // TRIGGER VOID RED ALERT
             if (regKey === 'void') {
                 scope.classList.add('void-alert');
             } else {
@@ -765,13 +866,10 @@
             };
         }
 
-        // --- NEW MAP PANNING AND DRAGGING LOGIC ---
         viewport.addEventListener('mousedown', (e) => {
-            // Ignore if clicking a map token, the ship, or a label
             if (e.target.closest('.poi-token') || e.target.closest('.npc-ship-token') || e.target.id === 'ship-token' || e.target.classList.contains('poi-label')) {
                 return; 
             }
-            // Otherwise, start panning the camera
             isPanning = true;
             viewport.style.cursor = 'grabbing';
             startPanX = e.pageX - viewport.offsetLeft;
@@ -781,7 +879,6 @@
         });
 
         viewport.addEventListener('mousemove', (e) => {
-            // Priority 1: Move the ship if we clicked it
             if (isDragging && shipElement) {
                 const rect = viewport.getBoundingClientRect();
                 const rawX = e.clientX - rect.left + viewport.scrollLeft;
@@ -802,12 +899,11 @@
                 return;
             }
 
-            // Priority 2: Pan the map if we clicked empty space
             if (isPanning) {
-                e.preventDefault(); // Stop text highlighting while dragging
+                e.preventDefault(); 
                 const x = e.pageX - viewport.offsetLeft;
                 const y = e.pageY - viewport.offsetTop;
-                const walkX = (x - startPanX) * 1.5; // Multiply for faster panning
+                const walkX = (x - startPanX) * 1.5; 
                 const walkY = (y - startPanY) * 1.5;
                 viewport.scrollLeft = scrollL - walkX;
                 viewport.scrollTop = scrollT - walkY;
