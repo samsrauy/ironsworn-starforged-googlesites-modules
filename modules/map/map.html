@@ -114,7 +114,6 @@
         const rulerBg = document.getElementById('ruler-bg');
         const rulerText = document.getElementById('ruler-text');
         
-        // Single source of truth for grid math
         const HEX_RADIUS = 30; 
         
         let activeSector = null;
@@ -124,19 +123,24 @@
         let dragStartY = 0;
 
         const REGION_RULES = {
-            'terminus': { settlements: 4, passages: 3 },
-            'outlands': { settlements: 3, passages: 2 },
-            'expanse':  { settlements: 2, passages: 1 }
+            'terminus': { settlements: 5, passages: 4 },
+            'outlands': { settlements: 4, passages: 3 },
+            'expanse':  { settlements: 3, passages: 2 }
         };
 
         const charNames = ["Jax", "Kaelen", "Lyra", "Voss", "Sira", "Tark", "Rian", "Cora", "Dax", "Elara", "Zane", "Nova", "Kian"];
         const secPrefix = ["Aegis", "Vanguard", "Helios", "Erebus", "Corsair", "Nova", "Obsidian", "Cygnus", "Talos", "Onyx"];
         const secSuffix = ["Reach", "Expanse", "Drift", "Cluster", "Sector", "Nebula", "Void", "Abyss", "Veil"];
 
+        // Expanded Fallback Arrays for Diverse Generation
+        const locRolls = ["Deep Space Station", "Orbital Habitat", "Asteroid Base", "Planetary Settlement", "Gas Giant Refinery"];
+        const planetRolls = ["Desert World", "Ice World", "Furnace World", "Jungle World", "Ocean World", "Rocky World", "Toxic World", "Shattered World"];
+        const anomalyRolls = ["Black Hole", "Neutron Star", "Asteroid Belt", "Ion Storm", "Stellar Nebula", "Red Dwarf Star", "Pulsar"];
+
         window.initMap = async function() {
             try {
                 generateStarscape();
-                drawGrid(); // Draw the visual grid to match the math
+                drawGrid(); 
                 statusMsg.innerText = "LINKING CORE...";
                 if(window.dataswornReady) await window.dataswornReady;
                 await refreshArchiveList();
@@ -168,7 +172,6 @@
             }
         }
 
-        // Unified mathematical pixel conversion
         function getHexPixel(gx, gy) {
             const hexH = HEX_RADIUS * Math.sqrt(3); 
             const px = gx * (HEX_RADIUS * 1.5); 
@@ -177,7 +180,6 @@
             return { x: px + HEX_RADIUS, y: py + (hexH / 2) };
         }
 
-        // Draws the visual lines to perfectly align with the math
         function drawGrid() {
             const gridLayer = document.getElementById('grid-layer');
             gridLayer.innerHTML = '';
@@ -231,6 +233,9 @@
             await window.gLink.saveSectorServer(window.charId, activeSector.id, activeSector.name, JSON.stringify(activeSector));
             statusMsg.innerText = "STANDBY";
             refreshArchiveList(); 
+            
+            // This line fixes your sync issue! It redraws the visual map using the updated data.
+            renderSector(); 
         };
 
         window.generateSector = async function() {
@@ -266,15 +271,34 @@
                     attempts++;
                 } while (!valid && attempts < 100);
 
-                const loc = rollOracle("settlement_location", "Deep Space Station");
+                // Add variety! 25% Anomaly, 25% Uncharted Planet, 50% Settlement
+                let poiCategory = Math.random();
+                let loc, name, planetType, auth, proj, pop;
+
+                if (poiCategory < 0.25) { 
+                    loc = "Stellar Anomaly";
+                    name = rollOracle("anomaly_name", anomalyRolls[Math.floor(Math.random() * anomalyRolls.length)]);
+                    planetType = "N/A";
+                    auth = "N/A"; proj = "N/A"; pop = "None";
+                } else if (poiCategory < 0.5) { 
+                    loc = "Uncharted Planet";
+                    planetType = rollOracle("planet_class", planetRolls[Math.floor(Math.random() * planetRolls.length)]);
+                    name = rollOracle("planet_name", `System ${secPrefix[Math.floor(Math.random()*secPrefix.length)]}-${i+1}`);
+                    auth = "N/A"; proj = "N/A"; pop = "None";
+                } else { 
+                    loc = rollOracle("settlement_location", locRolls[Math.floor(Math.random() * locRolls.length)]);
+                    name = rollOracle("settlement_name", `Outpost ${i+1}`);
+                    planetType = loc.toLowerCase().includes("planet") ? rollOracle("planet_class", planetRolls[Math.floor(Math.random() * planetRolls.length)]) : "N/A";
+                    auth = rollOracle("authority", "None");
+                    proj = rollOracle("settlement_projects", "Survival");
+                    pop = rollOracle("population", "Hundreds");
+                }
+
                 sector.settlements.push({
                     id: i, x: x, y: y,
-                    name: rollOracle("settlement_name", `Outpost ${i+1}`),
-                    location: loc,
-                    population: rollOracle("population", "Hundreds"),
-                    authority: rollOracle("authority", "None"),
-                    projects: rollOracle("settlement_projects", "Survival"),
-                    planet: loc.toLowerCase().includes("planet") ? rollOracle("planet_class", "Rocky World") : "N/A"
+                    name: name, location: loc,
+                    population: pop, authority: auth,
+                    projects: proj, planet: planetType
                 });
             }
 
@@ -374,8 +398,8 @@
                     <div class="data-card">
                         <div class="data-title editable" contenteditable="true" spellcheck="false" onblur="editSectorField('name', this.innerText, true, ${idx})">${s.name}</div>
                         <div class="data-text"><b>Loc:</b> ${s.location}</div>
-                        <div class="data-text"><b>Auth:</b> <span class="editable" contenteditable="true" spellcheck="false" onblur="editSectorField('authority', this.innerText, true, ${idx})">${s.authority}</span></div>
-                        <div class="data-text"><b>Proj:</b> <span class="editable" contenteditable="true" spellcheck="false" onblur="editSectorField('projects', this.innerText, true, ${idx})">${s.projects}</span></div>
+                        ${s.authority !== 'N/A' ? `<div class="data-text"><b>Auth:</b> <span class="editable" contenteditable="true" spellcheck="false" onblur="editSectorField('authority', this.innerText, true, ${idx})">${s.authority}</span></div>` : ''}
+                        ${s.projects !== 'N/A' ? `<div class="data-text"><b>Proj:</b> <span class="editable" contenteditable="true" spellcheck="false" onblur="editSectorField('projects', this.innerText, true, ${idx})">${s.projects}</span></div>` : ''}
                         ${s.planet !== 'N/A' ? `<div class="data-text" style="color:#fbbf24;"><b>Planet:</b> ${s.planet}</div>` : ''}
                     </div>
                 `;
@@ -386,7 +410,33 @@
                 token.style.left = pos.x + 'px';
                 token.style.top = pos.y + 'px';
                 token.innerHTML = `<div class="poi-label">${s.name}</div>`;
-                if (s.planet !== 'N/A') token.style.borderColor = "#fbbf24";
+                
+                // Color Code based on the POI type
+                let ringColor = "#00ff9d"; 
+                let bgColor = "#000";
+                let shadow = "0 0 10px rgba(0,255,153,0.3)";
+
+                if (s.location === "Uncharted Planet") {
+                    ringColor = "#3b82f6"; // Blueish
+                    shadow = "0 0 10px rgba(59,130,246,0.3)";
+                } else if (s.planet !== 'N/A' && s.location !== "Uncharted Planet") {
+                    ringColor = "#fbbf24"; // Gold for planetary settlements
+                    shadow = "0 0 10px rgba(251,191,36,0.3)";
+                } else if (s.location === "Stellar Anomaly") {
+                    if (s.name.includes("Black Hole")) {
+                        ringColor = "#8b5cf6"; bgColor = "#1e1b4b"; shadow = "0 0 15px #8b5cf6";
+                    } else if (s.name.includes("Star") || s.name.includes("Pulsar")) {
+                        ringColor = "#fcd34d"; bgColor = "#b45309"; shadow = "0 0 20px #fcd34d";
+                    } else {
+                        ringColor = "#a8a29e"; // Grey for Asteroids/Nebulas
+                        shadow = "0 0 10px rgba(168,162,158,0.3)";
+                    }
+                }
+
+                token.style.borderColor = ringColor;
+                token.style.backgroundColor = bgColor;
+                token.style.boxShadow = shadow;
+
                 contentLayer.appendChild(token);
             });
 
