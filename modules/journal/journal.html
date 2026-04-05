@@ -94,17 +94,31 @@
         <span id="prompt">SNEAKY_PIE@TERM:~$</span>
         <input type="text" id="log-input" placeholder="Type transmission here... (Press ENTER to send)" autocomplete="off" autofocus>
     </div>
-
-    <script>
-        // Set up your character variables (You likely pull these from window.charId normally)
-        const charName = "Sneaky Pie";
-        const charID = "SNEAKY PIE";
-        const maxLines = 50; // How many messages to keep on screen before deleting old ones
-
+    
+<script>
         const outputContainer = document.getElementById('terminal-output');
         const inputField = document.getElementById('log-input');
+        const promptSpan = document.getElementById('prompt');
+        const statusSpan = document.getElementById('uplink-status');
+        const maxLines = 50; 
+        
+        let charID = "UNKNOWN";
+        let charName = "Pilot";
 
-        // Listen for the Enter key
+        // Wait a brief moment to ensure sync.js has injected window.charId
+        setTimeout(() => {
+            if (window.charId) {
+                charID = window.charId;
+                charName = window.charName || window.charId;
+            }
+            
+            // Format the prompt string: e.g., snake@void-link.weave:~$
+            const safeId = charID.replace(/\s+/g, '_').toLowerCase();
+            promptSpan.innerText = safeId + "@void-link.weave:~$";
+            statusSpan.innerText = "UPLINK: ACTIVE";
+            statusSpan.style.color = "var(--term-green)";
+        }, 500);
+
         inputField.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -114,27 +128,26 @@
 
         function submitLog() {
             const text = inputField.value.trim();
-            if (text === "") return; // Don't send empty blanks
+            if (text === "") return; 
 
-            // 1. Generate Timestamps
             const now = new Date();
-            const dateStr = now.toLocaleDateString(); // e.g., 4/4/2026
-            const timeStr = now.toLocaleTimeString(); // e.g., 12:51:09 AM
+            const dateStr = now.toLocaleDateString(); 
+            const timeStr = now.toLocaleTimeString(); 
             
-            // Format for the [ID: SNEAKY PIE | 2026-04-04 00:51:08]
             const isoDate = now.toISOString().split('T')[0];
             const isoTime = now.toTimeString().split(' ')[0];
 
-            // 2. Build the exact string format you requested for Google Docs
-            const rawDocString = `[${dateStr}, ${timeStr}] ${charName}: [ID: ${charID} | ${isoDate} ${isoTime}]\n${text}`;
+            // 1. Build the payload for Google Docs. 
+            // We ONLY send the secondary ID block and text, because Code.gs adds the primary Timestamp and Name!
+            const payloadString = `[ID: ${charID.toUpperCase()} | ${isoDate} ${isoTime}]\n${text}`;
 
-            // 3. Print it locally to the terminal immediately
+            // 2. Print the FULL combined format locally to the terminal immediately for immersion
             appendTerminalEntry(dateStr, timeStr, isoDate, isoTime, text);
 
-            // 4. Push to Google Docs (This is where your existing gLink code goes!)
-            pushToGoogleDocs(rawDocString);
+            // 3. Push to Google Docs via sync.js
+            pushToGoogleDocs(payloadString);
 
-            // 5. Clear the input and refocus
+            // 4. Clear input
             inputField.value = '';
             inputField.focus();
         }
@@ -143,35 +156,32 @@
             const entry = document.createElement('div');
             entry.className = 'log-entry';
             
-            // Format it to look like a clean sci-fi log block
             entry.innerHTML = `
-                <span class="log-meta">[${dateStr}, ${timeStr}] ${charName}: <span class="log-id">[ID: ${charID} | ${isoDate} ${isoTime}]</span></span>
+                <span class="log-meta">[${dateStr}, ${timeStr}] ${charName}: <span class="log-id">[ID: ${charID.toUpperCase()} | ${isoDate} ${isoTime}]</span></span>
                 <div class="log-text">${text}</div>
             `;
             
             outputContainer.appendChild(entry);
-
-            // Scroll to the absolute bottom so the new message is always visible
             outputContainer.scrollTop = outputContainer.scrollHeight;
 
-            // Remove the oldest messages if we exceed maxLines (prevents lag over a long session)
             if (outputContainer.children.length > maxLines) {
-                outputContainer.removeChild(outputContainer.children[1]); // Keep the boot sequence at index 0, remove index 1
+                outputContainer.removeChild(outputContainer.children[1]); 
             }
         }
 
-        // Mock function representing your Google Link connection
-        async function pushToGoogleDocs(formattedString) {
+        // --- ACTUAL SERVER CONNECTION ---
+        async function pushToGoogleDocs(payloadString) {
             try {
-                // In your actual code, this will look something like:
-                // await window.gLink.appendToJournal(window.charId, formattedString);
-                
-                console.log("Pushed to Docs:", formattedString);
-                
-                // Optional: You could append a subtle system message confirming the save
-                // appendSystemMessage("Transmission logged to secure archive.");
+                // Call the logServer function verified from sync.js
+                if (window.gLink && typeof window.gLink.logServer === 'function') {
+                    await window.gLink.logServer(window.charId, payloadString);
+                    console.log("Transmission securely logged to Void-Link.");
+                } else {
+                    console.error("window.gLink.logServer not found. Ensure sync.js is fully loaded.");
+                }
             } catch (error) {
-                appendSystemMessage("ERROR: Uplink failed. Transmission not saved.");
+                console.error("Void-Link Sync Error:", error);
+                appendSystemMessage("ERROR: Uplink interrupted. Transmission failed.");
             }
         }
 
@@ -182,16 +192,7 @@
             outputContainer.appendChild(entry);
             outputContainer.scrollTop = outputContainer.scrollHeight;
         }
-
-        // --- OPTIONAL MULTIPLAYER POLLING LOGIC ---
-        // If you want player 2's messages to pop up on Player 1's screen automatically:
-        /*
-        setInterval(async () => {
-            // Fetch the last 10 lines from Google Docs
-            const recentLogs = await window.gLink.getRecentJournalEntries();
-            // Compare them to what is currently on screen, and append any new ones!
-        }, 5000); // Check every 5 seconds
-        */
     </script>
+
 </body>
 </html>
