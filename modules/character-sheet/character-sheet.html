@@ -1,7 +1,12 @@
 <style>
     #sheet-container { background: #0b0d12; color: #00ff9d; font-family: 'Exo 2', sans-serif; padding: 20px; }
-    .section-title { font-size: 0.7rem; letter-spacing: 3px; color: #454d5d; border-bottom: 1px solid #1a1c23; padding-bottom: 5px; margin: 20px 0 10px 0; text-transform: uppercase; }
+    .section-title { font-size: 0.7rem; letter-spacing: 3px; color: #454d5d; border-bottom: 1px solid #1a1c23; padding-bottom: 5px; margin: 25px 0 15px 0; text-transform: uppercase; }
     
+    /* Input Styling */
+    .term-input { background: #0b0d12; border: 1px solid #454d5d; color: #fff; padding: 10px; font-family: 'Share Tech Mono'; width: 100%; box-sizing: border-box; outline: none; transition: 0.2s; }
+    .term-input:focus { border-color: #00ff9d; }
+    .term-input::placeholder { color: #454d5d; }
+
     /* Stats Grid */
     .stat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; }
     .stat-btn { background: #161922; border: 1px solid #454d5d; padding: 10px; text-align: center; cursor: pointer; border-radius: 4px; transition: 0.2s; }
@@ -18,6 +23,10 @@
     .dot:hover { border-color: #00ff9d; }
     .dot.active { background: #00ff9d; box-shadow: 0 0 8px rgba(0, 255, 153, 0.5); border-color: #00ff9d; }
     
+    /* Impacts / Checkboxes */
+    .impact-label { color: #ff0055; font-size: 0.8rem; display: flex; align-items: center; gap: 8px; cursor: pointer; font-family: 'Share Tech Mono'; }
+    .impact-label input { cursor: pointer; accent-color: #ff0055; width: 16px; height: 16px; }
+
     /* Roll Overlay */
     #roll-overlay { 
         background: #000; 
@@ -33,6 +42,15 @@
 <div id="sheet-container">
     <div id="char-sheet-display" style="font-size: 1.2rem; letter-spacing: 5px; margin-bottom: 20px; color: #bcdee7;">UPLINKING...</div>
 
+    <div class="section-title">IDENTITY DATABANK</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+        <input type="text" id="f-name" class="term-input" placeholder="CALLSIGN / NAME" onchange="saveField('name', this.value)">
+        <input type="text" id="f-pronouns" class="term-input" placeholder="PRONOUNS" onchange="saveField('pronouns', this.value)">
+        <input type="text" id="f-background" class="term-input" placeholder="BACKGROUND" style="grid-column: span 2;" onchange="saveField('background', this.value)">
+        <input type="text" id="f-look" class="term-input" placeholder="LOOK / DETAILS" style="grid-column: span 2;" onchange="saveField('look', this.value)">
+    </div>
+
+    <div class="section-title">CORE ATTRIBUTES</div>
     <div class="stat-grid">
         <div class="stat-btn" onclick="triggerMoveRoll('Edge')"><span class="stat-label">Edge</span><span id="v-edge" class="stat-val">0</span></div>
         <div class="stat-btn" onclick="triggerMoveRoll('Heart')"><span class="stat-label">Heart</span><span id="v-heart" class="stat-val">0</span></div>
@@ -42,24 +60,56 @@
     </div>
 
     <div style="background: #1a1c23; border: 1px solid #454d5d; padding: 15px; border-left: 4px solid #3b82f6; margin-bottom: 20px; font-family: 'Exo 2', sans-serif;">
-        <div style="font-size: 0.7rem; color: #3b82f6; letter-spacing: 2px; margin-bottom: 10px; font-family: 'Share Tech Mono';">CUSTOM ACTION ROLLER</div>
-        
+        <div style="font-size: 0.7rem; color: #3b82f6; letter-spacing: 2px; margin-bottom: 10px; font-family: 'Share Tech Mono';">UNIVERSAL ACTION ROLLER</div>
         <div style="display: flex; gap: 10px; align-items: flex-end;">
             <div style="flex-grow: 1;">
                 <label style="font-size: 0.8rem; color: #aab; display: block; margin-bottom: 5px;">TOTAL ADDS (Stat + Bonuses)</label>
                 <input type="number" id="dice-modifier" value="0" style="width: 100%; box-sizing: border-box; height: 42px; background: #0b0d12; border: 1px solid #454d5d; color: #fff; text-align: center; font-size: 1.2rem; font-family: 'Share Tech Mono';">
             </div>
-            
             <button onclick="executeActionRoll()" style="height: 42px; background: #3b82f6; color: #000; border: none; padding: 0 20px; font-family: 'Share Tech Mono'; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap;">EXECUTE ROLL</button>
             <button onclick="executeD100Roll()" style="height: 42px; background: #161922; color: #bcdee7; border: 1px solid #454d5d; padding: 0 20px; font-family: 'Share Tech Mono'; cursor: pointer; transition: 0.2s; white-space: nowrap;">d100</button>
         </div>
     </div>
 
-    <div class="section-title">Condition Tracks</div>
+    <div class="section-title">CONDITION TRACKS</div>
     <div id="tracks-container"></div>
+    <div id="momentum-container" style="margin-top: 10px;"></div>
 
-    <div class="section-title">Momentum</div>
-    <div id="momentum-container"></div>
+    <div class="section-title">IMPACTS</div>
+    <div style="display: flex; gap: 20px; flex-wrap: wrap; background: #161922; padding: 15px; border: 1px solid #454d5d; border-radius: 4px; margin-bottom: 20px;">
+        <label class="impact-label"><input type="checkbox" id="i-wounded" onchange="saveField('i_wounded', this.checked)"> WOUNDED</label>
+        <label class="impact-label"><input type="checkbox" id="i-shaken" onchange="saveField('i_shaken', this.checked)"> SHAKEN</label>
+        <label class="impact-label"><input type="checkbox" id="i-unprepared" onchange="saveField('i_unprepared', this.checked)"> UNPREPARED</label>
+        <label class="impact-label"><input type="checkbox" id="i-battered" onchange="saveField('i_battered', this.checked)"> BATTERED</label>
+        <label class="impact-label"><input type="checkbox" id="i-cursed" onchange="saveField('i_cursed', this.checked)"> CURSED</label>
+    </div>
+
+    <div class="section-title">LEGACY & EXPERIENCE</div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
+        <div style="background: #161922; padding: 10px; border: 1px solid #454d5d; border-radius: 4px;">
+            <div style="font-size: 0.6rem; color: #aab; margin-bottom: 5px; text-transform: uppercase;">Quests (Ticks / 40)</div>
+            <input type="number" id="l-quests" class="term-input" min="0" max="40" onchange="saveField('l_quests', this.value)">
+        </div>
+        <div style="background: #161922; padding: 10px; border: 1px solid #454d5d; border-radius: 4px;">
+            <div style="font-size: 0.6rem; color: #aab; margin-bottom: 5px; text-transform: uppercase;">Bonds (Ticks / 40)</div>
+            <input type="number" id="l-bonds" class="term-input" min="0" max="40" onchange="saveField('l_bonds', this.value)">
+        </div>
+        <div style="background: #161922; padding: 10px; border: 1px solid #454d5d; border-radius: 4px;">
+            <div style="font-size: 0.6rem; color: #aab; margin-bottom: 5px; text-transform: uppercase;">Discoveries (Ticks / 40)</div>
+            <input type="number" id="l-discoveries" class="term-input" min="0" max="40" onchange="saveField('l_discoveries', this.value)">
+        </div>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+        <div style="background: #161922; padding: 10px; border: 1px solid #00ff9d; border-radius: 4px;">
+            <div style="font-size: 0.6rem; color: #00ff9d; margin-bottom: 5px; text-transform: uppercase;">Earned XP</div>
+            <input type="number" id="x-earned" class="term-input" min="0" onchange="saveField('x_earned', this.value)">
+        </div>
+        <div style="background: #161922; padding: 10px; border: 1px solid #ff0055; border-radius: 4px;">
+            <div style="font-size: 0.6rem; color: #ff0055; margin-bottom: 5px; text-transform: uppercase;">Spent XP</div>
+            <input type="number" id="x-spent" class="term-input" min="0" onchange="saveField('x_spent', this.value)">
+        </div>
+    </div>
 
     <div id="roll-overlay">
         <span class="roll-close" onclick="this.parentElement.style.display='none'">[CLOSE]</span>
@@ -81,13 +131,33 @@
             const data = await window.gLink.loadStatsServer(window.charId);
             const sheetData = data || {};
             
+            // 1. Core Header & Stats
             document.getElementById('char-sheet-display').innerText = (sheetData.name || window.charId).toUpperCase();
-            
             ['edge','heart','iron','shadow','wits'].forEach(s => {
                 const el = document.getElementById(`v-${s}`);
                 if (el) el.innerText = sheetData[s] || 0;
             });
 
+            // 2. Identity Text Fields
+            ['name', 'pronouns', 'background', 'look'].forEach(f => {
+                if(document.getElementById('f-'+f)) document.getElementById('f-'+f).value = sheetData[f] || "";
+            });
+
+            // 3. Impact Checkboxes (Stored as 'true'/'false' strings usually)
+            ['wounded', 'shaken', 'unprepared', 'battered', 'cursed'].forEach(i => {
+                const el = document.getElementById('i-'+i);
+                if(el) el.checked = (sheetData['i_'+i] === 'true' || sheetData['i_'+i] === true);
+            });
+
+            // 4. Legacy Tracks & XP
+            ['quests', 'bonds', 'discoveries'].forEach(l => {
+                if(document.getElementById('l-'+l)) document.getElementById('l-'+l).value = sheetData['l_'+l] || 0;
+            });
+            ['earned', 'spent'].forEach(x => {
+                if(document.getElementById('x-'+x)) document.getElementById('x-'+x).value = sheetData['x_'+x] || 0;
+            });
+
+            // 5. Condition Tracks
             document.getElementById('tracks-container').innerHTML = '';
             document.getElementById('momentum-container').innerHTML = '';
             
@@ -101,6 +171,15 @@
         } catch (err) {
             console.error("Sheet Init Failure:", err);
             document.getElementById('char-sheet-display').innerText = "LINK SEVERED";
+        }
+    }
+
+    // Generic save function for all the new inputs and checkboxes
+    function saveField(key, value) {
+        if (!window.activeCharData) window.activeCharData = {};
+        window.activeCharData[key] = value;
+        if (window.gLink) {
+            window.gLink.saveStatServer(window.charId, key, value);
         }
     }
 
@@ -118,7 +197,7 @@
             dot.onclick = async () => {
                 updateDotsUI(name, i, min, max);
                 window.activeCharData[name] = i;
-                window.gLink.saveStatServer(window.charId, name, i);
+                saveField(name, i);
             };
             dotBox.appendChild(dot);
         }
@@ -139,7 +218,7 @@
         const actionDie = Math.floor(Math.random() * 6) + 1;
         
         let actionScore = actionDie + val;
-        if (actionScore > 10) actionScore = 10; // Action score cannot exceed 10 naturally
+        if (actionScore > 10) actionScore = 10; 
         
         let hits = 0;
         if (actionScore > d1) hits++;
@@ -166,18 +245,14 @@
         
         try {
             const roll = await tempNeuralRoll(val);
-            
-            // Update UI
             document.getElementById('roll-res').innerText = roll.result;
             document.getElementById('roll-res').style.color = roll.result.includes("MISS") ? "#ff0055" : "#00ff9d";
             document.getElementById('roll-details').innerText = `${statName} (+${val}) vs Challenge(${roll.d1}, ${roll.d2})`;
 
-            // Push to Journal
             const logMsg = `[STAT ROLL: ${statName.toUpperCase()}]\nAction Die: ${roll.actionDie} + ${val} = ${roll.actionScore}\nChallenge Dice: [${roll.d1}] and [${roll.d2}]\nResult: **${roll.result}**`;
             if (window.gLink && typeof window.gLink.logServer === 'function') {
                 await window.gLink.logServer(window.charId, logMsg);
             }
-
         } catch (e) {
             document.getElementById('roll-res').innerText = "ROLL ERROR";
             console.error(e);
@@ -193,18 +268,14 @@
 
         try {
             const roll = await tempNeuralRoll(mod);
-
-            // Update UI
             document.getElementById('roll-res').innerText = roll.result;
             document.getElementById('roll-res').style.color = roll.result.includes("MISS") ? "#ff0055" : "#3b82f6";
             document.getElementById('roll-details').innerText = `Action: ${roll.actionScore} vs Challenge(${roll.d1}, ${roll.d2})`;
 
-            // Push to Journal
             const logMsg = `[CUSTOM ACTION ROLL]\nAction Die: ${roll.actionDie} + ${mod} = ${roll.actionScore}\nChallenge Dice: [${roll.d1}] and [${roll.d2}]\nResult: **${roll.result}**`;
             if (window.gLink && typeof window.gLink.logServer === 'function') {
                 await window.gLink.logServer(window.charId, logMsg);
             }
-
         } catch(e) {
             document.getElementById('roll-res').innerText = "ROLL ERROR";
             console.error(e);
@@ -216,14 +287,12 @@
         const roll = Math.floor(Math.random() * 100) + 1;
         const logMsg = `[PERCENTILE ROLL]\nResult: **${roll}**`;
         
-        // Update UI
         const overlay = document.getElementById('roll-overlay');
         overlay.style.display = 'block';
         document.getElementById('roll-res').innerText = `ROLLED: ${roll}`;
         document.getElementById('roll-res').style.color = "#3b82f6";
         document.getElementById('roll-details').innerText = `Percentile d100 Roll`;
 
-        // Push to Journal
         if (window.gLink && typeof window.gLink.logServer === 'function') {
             await window.gLink.logServer(window.charId, logMsg);
         }
