@@ -1,5 +1,5 @@
 <style>
-    #sheet-container { background: #0b0d12; color: #00ff9d; font-family: 'Exo 2', sans-serif; padding: 20px; }
+    #sheet-container { background: #0b0d12; color: #00ff9d; font-family: 'Exo 2', sans-serif; padding: 20px; box-sizing: border-box; }
     .section-title { font-size: 0.7rem; letter-spacing: 3px; color: #454d5d; border-bottom: 1px solid #1a1c23; padding-bottom: 5px; margin: 25px 0 15px 0; text-transform: uppercase; }
     
     /* Input Styling */
@@ -15,8 +15,8 @@
     .stat-label { font-size: 0.6rem; text-transform: uppercase; opacity: 0.6; }
 
     /* Resource Tracks */
-    .track-wrapper { background: #161922; padding: 10px 15px; margin-bottom: 5px; border-radius: 4px; border: 1px solid #454d5d; display: flex; align-items: center; justify-content: space-between;}
-    .track-label { font-size: 0.8rem; font-weight: bold; width: 180px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+    .track-wrapper { background: #161922; padding: 10px 15px; margin-bottom: 5px; border-radius: 4px; border: 1px solid #454d5d; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;}
+    .track-label { font-size: 0.8rem; font-weight: bold; width: 150px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
     .track-dots { display: flex; gap: 4px; flex-wrap: wrap; }
     .dot { width: 14px; height: 14px; border: 1px solid #454d5d; cursor: pointer; transition: 0.2s; }
     .dot:hover { border-color: #00ff9d; }
@@ -27,13 +27,19 @@
     .warn-tag.active { display: inline-block; }
 
     /* Impacts Drawer */
-    .drawer-btn { background: #1a1c23; border: 1px dashed #454d5d; color: #ff0055; padding: 10px 15px; width: 100%; text-align: left; cursor: pointer; font-family: 'Share Tech Mono'; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; border-radius: 4px; margin-bottom: 5px; }
+    .drawer-btn { background: #1a1c23; border: 1px dashed #454d5d; color: #ff0055; padding: 10px 15px; width: 100%; text-align: left; cursor: pointer; font-family: 'Share Tech Mono'; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; border-radius: 4px; margin-bottom: 5px; box-sizing: border-box; }
     .drawer-btn:hover { background: #ff005511; border-color: #ff0055; }
-    .drawer-content { display: none; background: #0b0d12; border: 1px dashed #454d5d; border-top: none; padding: 15px; flex-wrap: wrap; gap: 20px; margin-bottom: 15px; border-radius: 0 0 4px 4px; }
+    .drawer-content { display: none; background: #0b0d12; border: 1px dashed #454d5d; border-top: none; padding: 15px; flex-wrap: wrap; gap: 20px; margin-bottom: 15px; border-radius: 0 0 4px 4px; box-sizing: border-box; }
     .drawer-content.open { display: flex; }
     .impact-label { color: #aab; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; cursor: pointer; font-family: 'Share Tech Mono'; transition: 0.2s;}
     .impact-label:hover { color: #fff; }
     .impact-label input { cursor: pointer; accent-color: #ff0055; width: 14px; height: 14px; margin: 0; }
+
+    /* Buttons & UI Controls */
+    .action-btn { height: 42px; background: #3b82f6; color: #000; border: none; padding: 0 15px; font-family: 'Share Tech Mono'; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; border-radius: 3px; }
+    .action-btn:hover { background: #60a5fa; }
+    .burn-btn { height: 42px; background: #ff0055; color: #fff; border: none; padding: 0 15px; font-family: 'Share Tech Mono'; font-weight: bold; cursor: pointer; border-radius: 3px; transition: 0.2s; white-space: nowrap; }
+    .burn-btn:hover { background: #ff3377; box-shadow: 0 0 10px rgba(255,0,85,0.4); }
 
     /* Roll Overlay */
     #roll-overlay { background: #000; border: 1px solid #00ff9d; padding: 15px; margin-top: 20px; display: none; box-shadow: inset 0 0 15px rgba(0, 255, 153, 0.1); }
@@ -62,31 +68,28 @@
 
     <div style="background: #1a1c23; border: 1px solid #454d5d; padding: 15px; border-left: 4px solid #3b82f6; margin-bottom: 20px; font-family: 'Exo 2', sans-serif;">
         <div style="font-size: 0.7rem; color: #3b82f6; letter-spacing: 2px; margin-bottom: 10px; font-family: 'Share Tech Mono';">UNIVERSAL ACTION ROLLER</div>
-        <div style="display: flex; gap: 10px; align-items: flex-end;">
-            <div style="flex-grow: 1;">
+        <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+            <div style="flex-grow: 1; min-width: 120px;">
                 <label style="font-size: 0.8rem; color: #aab; display: block; margin-bottom: 5px;">TOTAL ADDS (Stat + Bonuses)</label>
                 <input type="number" id="dice-modifier" value="0" style="width: 100%; box-sizing: border-box; height: 42px; background: #0b0d12; border: 1px solid #454d5d; color: #fff; text-align: center; font-size: 1.2rem; font-family: 'Share Tech Mono';">
             </div>
-            <button onclick="executeActionRoll()" style="height: 42px; background: #3b82f6; color: #000; border: none; padding: 0 20px; font-family: 'Share Tech Mono'; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap;">EXECUTE ROLL</button>
-            <button onclick="executeD100Roll()" style="height: 42px; background: #161922; color: #bcdee7; border: 1px solid #454d5d; padding: 0 20px; font-family: 'Share Tech Mono'; cursor: pointer; transition: 0.2s; white-space: nowrap;">d100</button>
+            <button class="action-btn" onclick="executeActionRoll()">EXECUTE ROLL</button>
+            <button onclick="executeD100Roll()" style="height: 42px; background: #161922; color: #bcdee7; border: 1px solid #454d5d; padding: 0 15px; font-family: 'Share Tech Mono'; cursor: pointer; transition: 0.2s; white-space: nowrap; border-radius: 3px;">d100</button>
         </div>
     </div>
 
     <div class="section-title">CONDITIONS & MOMENTUM</div>
     
-    <div style="display: flex; align-items: center; justify-content: space-between; background: #1a1c23; padding: 10px 15px; border: 1px solid #454d5d; border-left: 4px solid #bcdee7; border-radius: 4px; margin-bottom: 15px;">
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <span style="font-size: 0.8rem; font-weight: bold; color: #bcdee7; letter-spacing: 1px;">MOMENTUM</span>
-            <input type="number" id="v-momentum" class="term-input" style="width: 60px; height: 35px; text-align: center; padding: 5px; font-size: 1.2rem;" onchange="saveField('momentum', this.value)">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; background: #1a1c23; padding: 10px 15px; border: 1px solid #454d5d; border-left: 4px solid #bcdee7; border-radius: 4px; margin-bottom: 15px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <button class="burn-btn" onclick="burnMomentum()" title="Click to Burn Momentum">MOMENTUM</button>
+            <input type="number" id="v-momentum" class="term-input" style="width: 70px; height: 42px; text-align: center; font-size: 1.4rem; font-weight: bold; margin: 0;" onchange="saveField('momentum', this.value)">
         </div>
         <div style="display: flex; gap: 15px; font-size: 0.65rem; color: #aab; text-align: center;">
             <div>MAX<br><span id="mom-max" style="font-size: 1rem; color: #fff; font-weight: bold;">10</span></div>
             <div>RESET<br><span id="mom-reset" style="font-size: 1rem; color: #fff; font-weight: bold;">2</span></div>
         </div>
-        <div style="display: flex; gap: 10px;">
-            <button onclick="burnMomentum()" style="height: 35px; background: #ff0055; color: #fff; border: none; padding: 0 15px; font-family: 'Share Tech Mono'; font-weight: bold; cursor: pointer; border-radius: 3px; transition: 0.2s;">BURN</button>
-            <button onclick="resetMomentum()" style="height: 35px; background: #3b82f6; color: #000; border: none; padding: 0 15px; font-family: 'Share Tech Mono'; font-weight: bold; cursor: pointer; border-radius: 3px; transition: 0.2s;">RESET</button>
-        </div>
+        <button class="action-btn" onclick="resetMomentum()">RESET</button>
     </div>
 
     <button class="drawer-btn" onclick="toggleDrawer()">
@@ -103,8 +106,54 @@
 
     <div id="tracks-container"></div>
 
+    <div class="section-title">PROGRESS & CLOCKS</div>
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+        
+        <div style="font-size: 0.6rem; color: #aab; letter-spacing: 1px;">ACTIVE PROGRESS (TICKS / 40)</div>
+        <div style="display: flex; gap: 10px; background: #161922; padding: 10px; border: 1px solid #454d5d; border-radius: 4px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="p-track1-name" class="term-input" placeholder="VOW / EXPEDITION NAME" style="flex-grow: 1; min-width: 150px;" onchange="saveField('p_track1_name', this.value)">
+            <input type="number" id="p-track1-ticks" class="term-input" placeholder="0" style="width: 80px; text-align: center;" min="0" max="40" onchange="saveField('p_track1_ticks', this.value)">
+        </div>
+        <div style="display: flex; gap: 10px; background: #161922; padding: 10px; border: 1px solid #454d5d; border-radius: 4px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="p-track2-name" class="term-input" placeholder="VOW / EXPEDITION NAME" style="flex-grow: 1; min-width: 150px;" onchange="saveField('p_track2_name', this.value)">
+            <input type="number" id="p-track2-ticks" class="term-input" placeholder="0" style="width: 80px; text-align: center;" min="0" max="40" onchange="saveField('p_track2_ticks', this.value)">
+        </div>
+        <div style="display: flex; gap: 10px; background: #161922; padding: 10px; border: 1px solid #454d5d; border-radius: 4px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="p-track3-name" class="term-input" placeholder="COMBAT / THREAT NAME" style="flex-grow: 1; min-width: 150px;" onchange="saveField('p_track3_name', this.value)">
+            <input type="number" id="p-track3-ticks" class="term-input" placeholder="0" style="width: 80px; text-align: center;" min="0" max="40" onchange="saveField('p_track3_ticks', this.value)">
+        </div>
+
+        <div style="font-size: 0.6rem; color: #aab; letter-spacing: 1px; margin-top: 10px;">ACTIVE CLOCKS (SEGMENTS)</div>
+        <div style="display: flex; gap: 10px; background: #161922; padding: 10px; border: 1px dashed #454d5d; border-radius: 4px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="c-clock1-name" class="term-input" placeholder="CLOCK NAME" style="flex-grow: 1; min-width: 120px;" onchange="saveField('c_clock1_name', this.value)">
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <input type="number" id="c-clock1-val" class="term-input" placeholder="0" style="width: 60px; text-align: center;" min="0" onchange="saveField('c_clock1_val', this.value)">
+                <span style="color: #aab;">/</span>
+                <select id="c-clock1-max" class="term-input" style="width: 70px; padding: 8px;" onchange="saveField('c_clock1_max', this.value)">
+                    <option value="4">4</option>
+                    <option value="6">6</option>
+                    <option value="8">8</option>
+                    <option value="10">10</option>
+                </select>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px; background: #161922; padding: 10px; border: 1px dashed #454d5d; border-radius: 4px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="c-clock2-name" class="term-input" placeholder="CLOCK NAME" style="flex-grow: 1; min-width: 120px;" onchange="saveField('c_clock2_name', this.value)">
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <input type="number" id="c-clock2-val" class="term-input" placeholder="0" style="width: 60px; text-align: center;" min="0" onchange="saveField('c_clock2_val', this.value)">
+                <span style="color: #aab;">/</span>
+                <select id="c-clock2-max" class="term-input" style="width: 70px; padding: 8px;" onchange="saveField('c_clock2_max', this.value)">
+                    <option value="4">4</option>
+                    <option value="6">6</option>
+                    <option value="8">8</option>
+                    <option value="10">10</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
     <div class="section-title">LEGACY & EXPERIENCE</div>
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 15px; margin-bottom: 20px;">
         <div style="background: #161922; padding: 10px; border: 1px solid #454d5d; border-radius: 4px;">
             <div style="font-size: 0.6rem; color: #aab; margin-bottom: 5px; text-transform: uppercase;">Quests (Ticks / 40)</div>
             <input type="number" id="l-quests" class="term-input" min="0" max="40" onchange="saveField('l_quests', this.value)">
@@ -157,6 +206,19 @@
                 if(document.getElementById('f-'+f)) document.getElementById('f-'+f).value = sheetData[f] || "";
             });
 
+            // Load Progress Tracks
+            ['1', '2', '3'].forEach(num => {
+                if(document.getElementById('p-track'+num+'-name')) document.getElementById('p-track'+num+'-name').value = sheetData['p_track'+num+'_name'] || "";
+                if(document.getElementById('p-track'+num+'-ticks')) document.getElementById('p-track'+num+'-ticks').value = sheetData['p_track'+num+'_ticks'] || "";
+            });
+
+            // Load Clocks
+            ['1', '2'].forEach(num => {
+                if(document.getElementById('c-clock'+num+'-name')) document.getElementById('c-clock'+num+'-name').value = sheetData['c_clock'+num+'_name'] || "";
+                if(document.getElementById('c-clock'+num+'-val')) document.getElementById('c-clock'+num+'-val').value = sheetData['c_clock'+num+'_val'] || "";
+                if(document.getElementById('c-clock'+num+'-max')) document.getElementById('c-clock'+num+'-max').value = sheetData['c_clock'+num+'_max'] || 4;
+            });
+
             ['quests', 'bonds', 'discoveries'].forEach(l => {
                 if(document.getElementById('l-'+l)) document.getElementById('l-'+l).value = sheetData['l_'+l] || 0;
             });
@@ -166,7 +228,6 @@
 
             document.getElementById('v-momentum').value = parseInt(sheetData.momentum ?? 2);
 
-            // Render Tracks with specific Warning Tags assigned to them
             document.getElementById('tracks-container').innerHTML = '';
             renderResource('health', 0, 5, parseInt(sheetData.health ?? 5), 'tracks-container', [
                 {id: 'wounded', label: 'WOUNDED'}, {id: 'battered', label: 'BATTERED'}
@@ -178,7 +239,6 @@
                 {id: 'unprepared', label: 'UNPREPARED'}
             ]);
 
-            // Sync Checkboxes and Tags
             ['wounded', 'battered', 'shaken', 'cursed', 'unprepared'].forEach(i => {
                 const isChecked = (sheetData['i_'+i] === 'true' || sheetData['i_'+i] === true);
                 const el = document.getElementById('i-'+i);
@@ -211,14 +271,11 @@
 
     window.toggleImpact = function(id, isChecked) {
         saveField('i_' + id, isChecked);
-        
-        // Toggle the warning tag on the track UI
         const tagEl = document.getElementById('tag-' + id);
         if (tagEl) {
             if (isChecked) tagEl.classList.add('active');
             else tagEl.classList.remove('active');
         }
-        
         recalcMomentum();
     };
 
