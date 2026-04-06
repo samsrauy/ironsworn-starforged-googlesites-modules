@@ -245,7 +245,7 @@
         document.getElementById(`v-${activeStatEdit}`).innerText = current;
         saveField(activeStatEdit, current);
     };
-
+    
     // Tracks & Math Engine
     window.markTracker = function(id, direction) {
         const t = masterTrackers.find(x => x.id === id);
@@ -407,15 +407,35 @@
             return;
         }
         
+        let newResultMsg = "";
+        
+        // Recalculate if there is an active roll in the memory bank
+        if (window.lastRollContext && window.lastRollContext.active) {
+            const d1 = window.lastRollContext.d1;
+            const d2 = window.lastRollContext.d2;
+            let hits = (currentMom > d1 ? 1 : 0) + (currentMom > d2 ? 1 : 0);
+            let newResult = hits === 2 ? "STRONG HIT" : hits === 1 ? "WEAK HIT" : "MISS";
+            if (d1 === d2) newResult = "MATCH: " + newResult;
+            
+            let newColor = newResult.includes("MISS") ? "#ff0055" : newResult.includes("STRONG") ? "#00ff9d" : "#3b82f6";
+            
+            document.getElementById('roll-overlay').style.display = 'block';
+            document.getElementById('roll-res').innerText = newResult;
+            document.getElementById('roll-res').style.color = newColor;
+            document.getElementById('roll-details').innerText = `Momentum: ${currentMom} vs Challenge(${d1}, ${d2})`;
+            
+            newResultMsg = ` Recalculated as ${newResult}.`;
+            window.lastRollContext.active = false; // Consume the roll so it can't be burned twice
+        }
+        
         const resetText = document.getElementById('btn-mom-reset').innerText;
         const resetVal = parseInt(resetText.replace('R ', '').split('/')[0]); 
         
         saveMomentum(resetVal); 
         
         if (window.gLink && typeof window.gLink.logServer === 'function') {
-            await window.gLink.logServer(window.charId, `[BURNED MOMENTUM] Replaced action score with +${currentMom}. Resetting meter to +${resetVal}.`);
+            await window.gLink.logServer(window.charId, `[BURNED MOMENTUM] Replaced action score with +${currentMom}.${newResultMsg} Resetting meter to +${resetVal}.`);
         }
-        alert(`Momentum Burned! Action score acts as +${currentMom}. Momentum reset to +${resetVal}.`);
     };
 
     window.resetMomentum = () => {
@@ -437,6 +457,9 @@
     
     window.openTrackerModal = () => document.getElementById('tracker-panel').classList.add('open');
     window.closeTrackerModal = () => document.getElementById('tracker-panel').classList.remove('open');
+
+    // --- DICE MEMORY BANK ---
+    window.lastRollContext = { d1: 0, d2: 0, active: false };
 
     // Dice Engine
     async function tempNeuralRoll(val) {
@@ -462,8 +485,12 @@
         document.getElementById('roll-overlay').style.display = 'block'; document.getElementById('roll-res').innerText = "CALCULATING...";
         try { 
             const r = await tempNeuralRoll(val); 
+            
+            // SAVE TO MEMORY BANK
+            window.lastRollContext = { d1: r.d1, d2: r.d2, active: true };
+            
             document.getElementById('roll-res').innerText = r.result; 
-            document.getElementById('roll-res').style.color = r.result.includes("MISS") ? "#ff0055" : "#00ff9d"; 
+            document.getElementById('roll-res').style.color = r.result.includes("MISS") ? "#ff0055" : (r.result.includes("STRONG") ? "#00ff9d" : "#3b82f6"); 
             
             let details = `${statName} (+${val}) vs Challenge(${r.d1}, ${r.d2})`;
             if (r.ad === 0) details += " [CANCELED BY NEG MOMENTUM]";
@@ -476,8 +503,12 @@
         document.getElementById('roll-overlay').style.display = 'block'; document.getElementById('roll-res').innerText = "CALCULATING...";
         try { 
             const r = await tempNeuralRoll(mod); 
+            
+            // SAVE TO MEMORY BANK
+            window.lastRollContext = { d1: r.d1, d2: r.d2, active: true };
+            
             document.getElementById('roll-res').innerText = r.result; 
-            document.getElementById('roll-res').style.color = r.result.includes("MISS") ? "#ff0055" : "#3b82f6"; 
+            document.getElementById('roll-res').style.color = r.result.includes("MISS") ? "#ff0055" : (r.result.includes("STRONG") ? "#00ff9d" : "#3b82f6"); 
             
             let details = `Action: ${r.s} vs Challenge(${r.d1}, ${r.d2})`;
             if (r.ad === 0) details += " [CANCELED BY NEG MOMENTUM]";
