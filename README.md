@@ -127,11 +127,15 @@ Contributions are welcome! Please follow these steps:
 
 ## 📜 License  
 
-See **[LICENSE.md](LICENSE.md)** for licensing terms. The repository is distributed under an open‑source license (MIT or equivalent).  
+This project is licensed under Creative Commons Attribution-NonCommercial 4.0 International. See **[LICENSE.md](LICENSE.md)** for licensing terms.  
 
 ---  
 
 *This README was crafted to be understandable by both human readers and large language models, ensuring that anyone can quickly grasp the purpose, structure, and operation of the **void-link** project.*
+
+---
+
+## Questions and Answers
 
 Q: Do I worry about security?
 A: How Security Actually Works in This Setup
