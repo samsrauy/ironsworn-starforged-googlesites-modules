@@ -15,6 +15,19 @@
         
         #compendium-scope .oracle-roll-btn { margin-top: 15px; width: 100%; background: transparent; border: 1px solid #00ff9d; color: #00ff9d; padding: 8px; cursor: pointer; font-family: 'Share Tech Mono'; transition: 0.2s; }
         #compendium-scope .oracle-roll-btn:hover { background: #00ff9d; color: #000; }
+
+        /* Truth Cards */
+        #compendium-scope .truth-card { border-color: #454d5d; }
+        #compendium-scope .truth-card-done { border-color: #00ff9d33; }
+        #compendium-scope .truth-options-container { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+        #compendium-scope .truth-option { background: #0b0d12; border: 1px solid #454d5d; padding: 12px; cursor: pointer; transition: 0.2s; border-radius: 3px; }
+        #compendium-scope .truth-option:hover { border-color: #00ff9d88; background: rgba(0,255,153,0.03); }
+        #compendium-scope .truth-option-selected { border-color: #00ff9d !important; background: rgba(0,255,153,0.07) !important; }
+        #compendium-scope .truth-option-indicator { font-family: 'Share Tech Mono'; font-size: 0.6rem; letter-spacing: 2px; color: #454d5d; margin-bottom: 6px; transition: 0.2s; }
+        #compendium-scope .truth-option-selected .truth-option-indicator { color: #00ff9d; }
+        #compendium-scope .truth-option-text { font-size: 0.82rem; line-height: 1.55; color: #aab; }
+        #compendium-scope .truth-quest-starter { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #1a1c23; font-size: 0.78rem; line-height: 1.5; color: #7a7a8a; }
+        #compendium-scope .truth-progress { grid-column: 1 / -1; background: #161922; border: 1px solid #454d5d; padding: 12px 15px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
     </style>
 
     <div class="tabs">
@@ -102,6 +115,7 @@
         const scope = document.getElementById('compendium-scope');
         let fullData = [];
         let currentType = 'oracle_rollable';
+        let truthCharData = {};
 
         window.initCompendium = async function() {
             try {
@@ -122,22 +136,32 @@
             return results;
         }
 
-        window.switchCompendiumTab = function(type, btn) {
+        window.switchCompendiumTab = async function(type, btn) {
             currentType = type;
             scope.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            
+
             fullData = findDataswornItems(window.datasworn, currentType);
             scope.querySelector('#search').value = '';
+
+            if (type === 'setting_truth' && window.gLink && window.charId) {
+                try {
+                    const data = await window.gLink.loadStatsServer(window.charId);
+                    truthCharData = data || {};
+                } catch(e) { truthCharData = {}; }
+            }
+
             filterCompendium();
         };
 
         window.filterCompendium = function() {
+            if (currentType === 'setting_truth') { renderTruths(); return; }
+
             const query = scope.querySelector('#search').value.toLowerCase();
             const grid = scope.querySelector('#compendium-grid');
-            
-            const filtered = fullData.filter(item => 
-                (item.name && item.name.toLowerCase().includes(query)) || 
+
+            const filtered = fullData.filter(item =>
+                (item.name && item.name.toLowerCase().includes(query)) ||
                 (item._id && item._id.toLowerCase().includes(query))
             );
 
@@ -146,11 +170,102 @@
                     <div class="card-tag">${currentType.replace(/_/g, ' ')}</div>
                     <span class="card-title">${(item.name || "UNNAMED").toUpperCase()}</span>
                     <div class="card-text">${window.formatMarkdown(item.text || item.description || "")}</div>
-                    ${currentType === 'oracle_rollable' ? 
+                    ${currentType === 'oracle_rollable' ?
                         `<button class="oracle-roll-btn" onclick="consultNeuralOracle('${item.name.replace(/'/g, "\\'")}', '${item._id}')">CONSULT ORACLE</button>` : ''
                     }
                 </div>
             `).join('');
+        };
+
+        function getTruthSlug(item) {
+            const id = item.$id || item._id || item.id || '';
+            const parts = id.split('/');
+            return parts[parts.length - 1] || id;
+        }
+
+        function renderTruths() {
+            const grid = scope.querySelector('#compendium-grid');
+            const query = scope.querySelector('#search').value.toLowerCase();
+
+            const filtered = fullData.filter(item =>
+                !query || (item.name && item.name.toLowerCase().includes(query))
+            );
+
+            const total = fullData.length;
+            const configured = fullData.filter(item => {
+                const slug = getTruthSlug(item);
+                const val = truthCharData['truth_' + slug];
+                return val !== undefined && val !== null && val !== '';
+            }).length;
+            const allDone = configured === total && total > 0;
+
+            const progressHtml = `
+                <div class="truth-progress">
+                    <span style="font-family:'Share Tech Mono'; font-size:0.75rem; color:#aab; letter-spacing:1px;">CAMPAIGN SETUP</span>
+                    <span data-truth-counter style="font-family:'Share Tech Mono'; font-size:0.85rem; font-weight:bold; color:${allDone ? '#00ff9d' : '#f59e0b'};">
+                        ${configured} / ${total} TRUTHS CONFIGURED
+                    </span>
+                </div>`;
+
+            const cardsHtml = filtered.map(item => {
+                const slug = getTruthSlug(item);
+                const savedVal = truthCharData['truth_' + slug];
+                const savedIdx = (savedVal !== undefined && savedVal !== '') ? parseInt(savedVal) : -1;
+                const options = item.options || [];
+                const summary = item.summary || item.description || '';
+
+                const optionsHtml = options.map((opt, idx) => {
+                    const isSelected = savedIdx === idx;
+                    const text = opt.description || opt.summary || opt.text || 'No description available.';
+                    const quest = opt.quest_starter || '';
+                    return `
+                        <div class="truth-option ${isSelected ? 'truth-option-selected' : ''}"
+                             onclick="selectTruth('${slug}', ${idx}, this)">
+                            <div class="truth-option-indicator">${isSelected ? '◆ ACTIVE' : '◇ SELECT'}</div>
+                            <div class="truth-option-text">${window.formatMarkdown(text)}</div>
+                            ${quest ? `<div class="truth-quest-starter"><span style="color:#f59e0b;font-size:0.6rem;letter-spacing:1px;font-family:'Share Tech Mono';">QUEST STARTER</span><br>${window.formatMarkdown(quest)}</div>` : ''}
+                        </div>`;
+                }).join('');
+
+                return `
+                    <div class="card truth-card ${savedIdx >= 0 ? 'truth-card-done' : ''}">
+                        <div class="card-tag">SETTING TRUTH</div>
+                        <span class="card-title">${(item.name || 'UNKNOWN TRUTH').toUpperCase()}</span>
+                        ${summary ? `<div class="card-text" style="font-style:italic;margin-bottom:10px;">${window.formatMarkdown(summary)}</div>` : ''}
+                        <div class="truth-options-container">${optionsHtml || '<div style="color:#454d5d;font-size:0.8rem;">No options found in data.</div>'}</div>
+                    </div>`;
+            }).join('');
+
+            grid.innerHTML = progressHtml + cardsHtml;
+        }
+
+        window.selectTruth = async function(slug, optionIdx, clickedEl) {
+            truthCharData['truth_' + slug] = optionIdx;
+
+            const card = clickedEl.closest('.truth-card');
+            card.querySelectorAll('.truth-option').forEach(el => {
+                el.classList.remove('truth-option-selected');
+                el.querySelector('.truth-option-indicator').innerText = '◇ SELECT';
+            });
+            clickedEl.classList.add('truth-option-selected');
+            clickedEl.querySelector('.truth-option-indicator').innerText = '◆ ACTIVE';
+            card.classList.add('truth-card-done');
+
+            const total = fullData.length;
+            const configured = fullData.filter(item => {
+                const s = getTruthSlug(item);
+                const v = truthCharData['truth_' + s];
+                return v !== undefined && v !== null && v !== '';
+            }).length;
+            const counter = scope.querySelector('[data-truth-counter]');
+            if (counter) {
+                counter.innerText = `${configured} / ${total} TRUTHS CONFIGURED`;
+                counter.style.color = configured === total ? '#00ff9d' : '#f59e0b';
+            }
+
+            if (window.gLink && window.charId) {
+                await window.gLink.saveStatServer(window.charId, 'truth_' + slug, optionIdx);
+            }
         };
 
         window.consultNeuralOracle = async function(name, id) {
