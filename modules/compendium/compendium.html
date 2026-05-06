@@ -271,8 +271,25 @@
 
         function processTemplates(html, truthSlug) {
             return html.replace(/\{\{table:([\w\/]+)\}\}/g, (match, tableId) => {
-                const node = window.dataswornCore ? window.dataswornCore.findNode(tableId) : null;
-                const rows = node ? (node.rows || []) : [];
+                // ID format: "starforged/truths/<slug>/<optionIndex>"
+                // The sub-table is embedded in that option object, not a standalone node.
+                let rows = [];
+                const parts = tableId.split('/');
+                const truthsIdx = parts.indexOf('truths');
+                if (truthsIdx !== -1 && parts.length > truthsIdx + 2) {
+                    const tSlug = parts[truthsIdx + 1];
+                    const optIdx = parseInt(parts[truthsIdx + 2]);
+                    const truthObj = window.datasworn && window.datasworn.truths && window.datasworn.truths[tSlug];
+                    if (truthObj && truthObj.options && truthObj.options[optIdx]) {
+                        const opt = truthObj.options[optIdx];
+                        rows = opt.rows || (opt.table && opt.table.rows) || [];
+                    }
+                }
+                // Fallback: try findNode in case it is a standalone node
+                if (!rows.length && window.dataswornCore) {
+                    const node = window.dataswornCore.findNode(tableId);
+                    if (node) rows = node.rows || (node.table && node.table.rows) || [];
+                }
                 if (!rows.length) return `<span style="color:#454d5d;font-size:0.75rem;">[table not found: ${tableId}]</span>`;
 
                 const uid = 'sub_' + truthSlug + '_' + tableId.replace(/\//g, '_');
