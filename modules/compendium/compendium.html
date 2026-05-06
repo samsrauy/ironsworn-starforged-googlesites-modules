@@ -282,13 +282,17 @@
                     const truthObj = window.datasworn && window.datasworn.truths && window.datasworn.truths[tSlug];
                     if (truthObj && truthObj.options && truthObj.options[optIdx]) {
                         const opt = truthObj.options[optIdx];
-                        rows = opt.rows || (opt.table && opt.table.rows) || [];
+                        const raw = opt.rows || (opt.table && opt.table.rows) || [];
+                        rows = Array.isArray(raw) ? raw : Object.values(raw);
                     }
                 }
                 // Fallback: try findNode in case it is a standalone node
                 if (!rows.length && window.dataswornCore) {
                     const node = window.dataswornCore.findNode(tableId);
-                    if (node) rows = node.rows || (node.table && node.table.rows) || [];
+                    if (node) {
+                        const raw = node.rows || (node.table && node.table.rows) || [];
+                        rows = Array.isArray(raw) ? raw : Object.values(raw);
+                    }
                 }
                 if (!rows.length) return `<span style="color:#454d5d;font-size:0.75rem;">[table not found: ${tableId}]</span>`;
 
