@@ -120,12 +120,28 @@
         window.initCompendium = async function() {
             try {
                 await window.dataswornReady;
-                fullData = findDataswornItems(window.datasworn, currentType);
+                fullData = loadDataswornTab(currentType);
                 filterCompendium();
             } catch (err) {
                 console.error("Compendium Core Failure:", err);
             }
         };
+
+        function loadDataswornTab(type) {
+            if (type === 'setting_truth') return loadTruths();
+            return findDataswornItems(window.datasworn, type);
+        }
+
+        function loadTruths() {
+            // V2: truths live in window.datasworn.truths as a keyed dict
+            if (window.datasworn && window.datasworn.truths) {
+                return Object.values(window.datasworn.truths);
+            }
+            // Fallback: recursive search by type field variants
+            let results = findDataswornItems(window.datasworn, 'setting_truth');
+            if (!results.length) results = findDataswornItems(window.datasworn, 'truth');
+            return results;
+        }
 
         function findDataswornItems(obj, type, results = []) {
             if (!obj || typeof obj !== 'object') return results;
@@ -141,7 +157,7 @@
             scope.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
-            fullData = findDataswornItems(window.datasworn, currentType);
+            fullData = loadDataswornTab(currentType);
             scope.querySelector('#search').value = '';
 
             if (type === 'setting_truth' && window.gLink && window.charId) {
