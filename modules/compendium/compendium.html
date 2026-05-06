@@ -28,6 +28,17 @@
         #compendium-scope .truth-option-text { font-size: 0.82rem; line-height: 1.55; color: #aab; }
         #compendium-scope .truth-quest-starter { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #1a1c23; font-size: 0.78rem; line-height: 1.5; color: #7a7a8a; }
         #compendium-scope .truth-progress { grid-column: 1 / -1; background: #161922; border: 1px solid #454d5d; padding: 12px 15px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+
+        /* Truth sub-tables (embedded oracle rolls) */
+        #compendium-scope .truth-subtable { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #1a1c23; }
+        #compendium-scope .truth-sub-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-family: 'Share Tech Mono'; font-size: 0.6rem; letter-spacing: 1px; color: #f59e0b; }
+        #compendium-scope .truth-roll-btn { background: transparent; border: 1px solid #f59e0b; color: #f59e0b; padding: 2px 8px; cursor: pointer; font-family: 'Share Tech Mono'; font-size: 0.6rem; transition: 0.2s; }
+        #compendium-scope .truth-roll-btn:hover { background: #f59e0b; color: #000; }
+        #compendium-scope .truth-sub-rows { display: flex; flex-direction: column; gap: 4px; }
+        #compendium-scope .truth-sub-row { display: flex; gap: 8px; align-items: baseline; padding: 6px 8px; border: 1px solid #1a1c23; cursor: pointer; font-size: 0.78rem; color: #7a7a8a; transition: 0.2s; border-radius: 2px; }
+        #compendium-scope .truth-sub-row:hover { border-color: #454d5d; color: #aab; background: rgba(255,255,255,0.02); }
+        #compendium-scope .truth-sub-selected { border-color: #f59e0b !important; color: #bcdee7 !important; background: rgba(245,158,11,0.07) !important; }
+        #compendium-scope .truth-sub-range { color: #454d5d; font-family: 'Share Tech Mono'; font-size: 0.65rem; min-width: 38px; flex-shrink: 0; }
     </style>
 
     <div class="tabs">
@@ -116,6 +127,7 @@
         let fullData = [];
         let currentType = 'oracle_rollable';
         let truthCharData = {};
+        let subTableRegistry = {};
 
         window.initCompendium = async function() {
             try {
@@ -200,6 +212,7 @@
         }
 
         function renderTruths() {
+            subTableRegistry = {};
             const grid = scope.querySelector('#compendium-grid');
             const query = scope.querySelector('#search').value.toLowerCase();
 
@@ -232,13 +245,14 @@
 
                 const optionsHtml = options.map((opt, idx) => {
                     const isSelected = savedIdx === idx;
-                    const text = opt.description || opt.summary || opt.text || 'No description available.';
+                    const rawText = opt.description || opt.summary || opt.text || 'No description available.';
+                    const processedText = processTemplates(window.formatMarkdown(rawText), slug);
                     const quest = opt.quest_starter || '';
                     return `
                         <div class="truth-option ${isSelected ? 'truth-option-selected' : ''}"
                              onclick="selectTruth('${slug}', ${idx}, this)">
                             <div class="truth-option-indicator">${isSelected ? '◆ ACTIVE' : '◇ SELECT'}</div>
-                            <div class="truth-option-text">${window.formatMarkdown(text)}</div>
+                            <div class="truth-option-text">${processedText}</div>
                             ${quest ? `<div class="truth-quest-starter"><span style="color:#f59e0b;font-size:0.6rem;letter-spacing:1px;font-family:'Share Tech Mono';">QUEST STARTER</span><br>${window.formatMarkdown(quest)}</div>` : ''}
                         </div>`;
                 }).join('');
@@ -254,6 +268,61 @@
 
             grid.innerHTML = progressHtml + cardsHtml;
         }
+
+        function processTemplates(html, truthSlug) {
+            return html.replace(/\{\{table:([\w\/]+)\}\}/g, (match, tableId) => {
+                const node = window.dataswornCore ? window.dataswornCore.findNode(tableId) : null;
+                const rows = node ? (node.rows || []) : [];
+                if (!rows.length) return `<span style="color:#454d5d;font-size:0.75rem;">[table not found: ${tableId}]</span>`;
+
+                const uid = 'sub_' + truthSlug + '_' + tableId.replace(/\//g, '_');
+                const subKey = 'truth_' + truthSlug + '_sub';
+                const saved = truthCharData[subKey] !== undefined ? String(truthCharData[subKey]) : '';
+
+                subTableRegistry[uid] = {
+                    subKey,
+                    texts: rows.map(r => r.text || r.result || r.summary || '')
+                };
+
+                const rowsHtml = rows.map((row, i) => {
+                    const txt = row.text || row.result || row.summary || '';
+                    const range = row.min !== undefined ? `${row.min}–${row.max}` : String(i + 1);
+                    const sel = saved === String(i);
+                    return `<div class="truth-sub-row${sel ? ' truth-sub-selected' : ''}" data-uid="${uid}" data-idx="${i}" onclick="pickSubRow('${uid}', ${i})">
+                        <span class="truth-sub-range">${range}</span>
+                        <span>${window.formatMarkdown(txt)}</span>
+                    </div>`;
+                }).join('');
+
+                return `<div class="truth-subtable">
+                    <div class="truth-sub-header">
+                        <span>SELECT OR ROLL</span>
+                        <button class="truth-roll-btn" onclick="rollSubRow('${uid}')">ROLL</button>
+                    </div>
+                    <div class="truth-sub-rows" id="${uid}">${rowsHtml}</div>
+                </div>`;
+            });
+        }
+
+        window.pickSubRow = async function(uid, idx) {
+            const reg = subTableRegistry[uid];
+            if (!reg) return;
+
+            document.querySelectorAll(`.truth-sub-row[data-uid="${uid}"]`).forEach(el => {
+                el.classList.toggle('truth-sub-selected', parseInt(el.dataset.idx) === idx);
+            });
+
+            truthCharData[reg.subKey] = idx;
+            if (window.gLink && window.charId) {
+                await window.gLink.saveStatServer(window.charId, reg.subKey, idx);
+            }
+        };
+
+        window.rollSubRow = function(uid) {
+            const reg = subTableRegistry[uid];
+            if (!reg || !reg.texts.length) return;
+            pickSubRow(uid, Math.floor(Math.random() * reg.texts.length));
+        };
 
         window.selectTruth = async function(slug, optionIdx, clickedEl) {
             truthCharData['truth_' + slug] = optionIdx;
